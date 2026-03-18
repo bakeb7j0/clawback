@@ -362,3 +362,28 @@ body {
 .iw-item--error .iw-item__label {
     color: var(--color-accent);
 }
+
+/* -----------------------------------------------------------------------
+   Scroll-pause indicator
+   ----------------------------------------------------------------------- */
+.scroll-pause-indicator {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    user-select: none;
+}
+
+.scroll-pause-indicator:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
