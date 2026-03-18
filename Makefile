@@ -11,6 +11,7 @@ test: test-js
 
 test-js:
 	node tests/unit/js/test_parser.js
+	node tests/unit/js/test_playback.js
 
 test-integration:
 	python -m pytest tests/integration/ -v

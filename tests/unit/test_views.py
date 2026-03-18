@@ -12,6 +12,7 @@ def test_index_loads_all_required_scripts(client):
     """Index page includes all required script tags."""
     html = client.get("/").data.decode()
     assert "parser.js" in html, "parser.js must be loaded"
+    assert "playback.js" in html, "playback.js must be loaded"
     assert "app.js" in html, "app.js must be loaded"
     assert "alpinejs" in html, "Alpine.js must be loaded"
     assert "marked" in html, "marked.js must be loaded"
@@ -29,6 +30,8 @@ def test_index_script_load_order(client):
     def lib_name(src):
         if "parser.js" in src:
             return "parser"
+        if "playback.js" in src:
+            return "playback"
         if "app.js" in src:
             return "app"
         if "alpinejs" in src:
@@ -41,7 +44,8 @@ def test_index_script_load_order(client):
 
     order = [lib_name(s) for s in script_tags]
 
-    assert order.index("parser") < order.index("app"), "parser.js must load before app.js"
+    assert order.index("parser") < order.index("playback"), "parser.js must load before playback.js"
+    assert order.index("playback") < order.index("app"), "playback.js must load before app.js"
     assert order.index("app") < order.index("alpine"), "app.js must load before Alpine.js"
 
 

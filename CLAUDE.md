@@ -139,14 +139,18 @@ git checkout -b feature/<ISSUE_NUMBER>-description
 
 The branch name should include the issue number when practical (e.g., `feature/42-credential-management`).
 
-### 3. Close Issues When PR is Merged
+### 3. Verify and Close Issues When PR is Merged
 
-**When a PR is closed/merged, ALL associated issues MUST be moved to Closed state.**
+**When a PR is closed/merged, ALL associated issues MUST be verified and moved to Closed state.**
 
 After PR merge:
-1. **Identify all linked issues** - Check PR description for `Closes #XXX` or related issues
-2. **Close each issue** - `gh issue close <number>` (or let GitHub auto-close via keywords)
-3. **Verify closure** - Confirm issues show as closed
+1. **Read the issue's acceptance criteria** - `gh issue view <number>`
+2. **Verify each criterion against the codebase** - Run code, grep, or test to confirm implementation
+3. **Check off each verified criterion** - Update the issue body with `[x]` for each passing item
+4. **Close each issue** - `gh issue close <number>` (or let GitHub auto-close via `Closes #XXX`)
+5. **Verify closure** - Confirm issues show as closed
+
+**Unchecked acceptance criteria on a closed issue is a red flag.** If a criterion cannot be verified, the issue is NOT done — reopen it or create a follow-up.
 
 **This rule applies even if GitHub's auto-close feature is not working as expected.**
 
@@ -248,7 +252,7 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ## Session Onboarding
 
-When starting a session, read `Docs/implementation-plan.md` for current state and context.
+When starting a session, read `Docs/PRD.md` for product context and the phased implementation plan.
 
 ---
 
