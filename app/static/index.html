@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clawback — Session Replay</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Alpine.js for lightweight reactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+</head>
+<body x-data="clawbackApp()">
+    <header class="app-header">
+        <h1 class="app-title">Clawback</h1>
+        <span class="app-subtitle" x-show="sessionName" x-text="sessionName"></span>
+    </header>
+
+    <main class="app-main">
+        <!-- Session picker and playback views will be implemented in later issues -->
+        <div class="placeholder">
+            <p>Clawback is running. UI coming soon.</p>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
