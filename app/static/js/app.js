@@ -34,6 +34,7 @@ function clawbackApp() {
 
             const chatArea = this.$refs.chatArea;
             chatArea.innerHTML = "";
+            ClawbackRenderer.resetGroups();
 
             this._engine = new PlaybackEngine({
                 beats: beats,
