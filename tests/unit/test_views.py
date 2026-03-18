@@ -13,10 +13,12 @@ def test_index_loads_all_required_scripts(client):
     html = client.get("/").data.decode()
     assert "parser.js" in html, "parser.js must be loaded"
     assert "playback.js" in html, "playback.js must be loaded"
+    assert "renderer.js" in html, "renderer.js must be loaded"
     assert "app.js" in html, "app.js must be loaded"
     assert "alpinejs" in html, "Alpine.js must be loaded"
     assert "marked" in html, "marked.js must be loaded"
     assert "highlight" in html, "highlight.js must be loaded"
+    assert "dompurify" in html.lower(), "DOMPurify must be loaded"
 
 
 def test_index_script_load_order(client):
@@ -32,6 +34,8 @@ def test_index_script_load_order(client):
             return "parser"
         if "playback.js" in src:
             return "playback"
+        if "renderer.js" in src:
+            return "renderer"
         if "app.js" in src:
             return "app"
         if "alpinejs" in src:
@@ -40,13 +44,35 @@ def test_index_script_load_order(client):
             return "marked"
         if "highlight" in src:
             return "highlight"
+        if "dompurify" in src.lower() or "purify" in src.lower():
+            return "dompurify"
         return src
 
     order = [lib_name(s) for s in script_tags]
 
-    assert order.index("parser") < order.index("playback"), "parser.js must load before playback.js"
-    assert order.index("playback") < order.index("app"), "playback.js must load before app.js"
-    assert order.index("app") < order.index("alpine"), "app.js must load before Alpine.js"
+    # CDN libs must load before modules that depend on them
+    assert order.index("marked") < order.index("renderer"), (
+        "marked must load before renderer.js"
+    )
+    assert order.index("highlight") < order.index("renderer"), (
+        "highlight.js must load before renderer.js"
+    )
+    assert order.index("dompurify") < order.index("renderer"), (
+        "DOMPurify must load before renderer.js"
+    )
+    # Clawback modules in dependency order
+    assert order.index("parser") < order.index("playback"), (
+        "parser.js must load before playback.js"
+    )
+    assert order.index("playback") < order.index("renderer"), (
+        "playback.js must load before renderer.js"
+    )
+    assert order.index("renderer") < order.index("app"), (
+        "renderer.js must load before app.js"
+    )
+    assert order.index("app") < order.index("alpine"), (
+        "app.js must load before Alpine.js"
+    )
 
 
 def test_index_cdn_versions_are_pinned(client):
