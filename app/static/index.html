@@ -5,13 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clawback — Session Replay</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <!-- Alpine.js for lightweight reactivity -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <!-- marked.js for Markdown rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- highlight.js for syntax highlighting -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
-    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+    <!-- Third-party libraries -->
+    <script defer src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github-dark.min.css">
+    <script defer src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"></script>
+    <!-- Clawback modules -->
+    <script defer src="/static/js/parser.js"></script>
+    <script defer src="/static/js/app.js"></script>
+    <!-- Alpine.js MUST be last — defer scripts execute in order, and Alpine
+         needs clawbackApp() to be defined before it initializes -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 </head>
 <body x-data="clawbackApp()">
     <header class="app-header">
@@ -26,6 +29,5 @@
         </div>
     </main>
 
-    <script src="/static/js/app.js"></script>
 </body>
 </html>
