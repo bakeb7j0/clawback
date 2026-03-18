@@ -1,4 +1,4 @@
-.PHONY: lint format test test-integration run build up clean
+.PHONY: lint format test test-js test-integration run build up clean
 
 lint:
 	ruff check .
@@ -6,8 +6,11 @@ lint:
 format:
 	ruff format .
 
-test:
+test: test-js
 	python -m pytest tests/unit/ -v
+
+test-js:
+	node tests/unit/js/test_parser.js
 
 test-integration:
 	python -m pytest tests/integration/ -v
