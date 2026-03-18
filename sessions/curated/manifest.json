@@ -1,0 +1,9 @@
+[
+    {
+        "id": "demo-session",
+        "title": "Demo: File Review",
+        "description": "A sample conversation where Claude reads and runs a Python file, then reviews a config.",
+        "file": "demo-session.jsonl",
+        "beat_count": 12
+    }
+]

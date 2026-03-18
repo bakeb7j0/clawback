@@ -327,6 +327,34 @@ test("works without engine (before startPlayback)", function () {
 });
 
 // ---------------------------------------------------------------------------
+// backToSessions
+// ---------------------------------------------------------------------------
+console.log("\nbackToSessions");
+
+test("resets to picker view and cleans up engine/scroller", function () {
+    const app = makeApp(5);
+    app._engine.next();
+    assert.equal(app.currentBeat, 1);
+
+    app.backToSessions();
+    assert.equal(app.view, "picker");
+    assert.equal(app.playbackState, "READY");
+    assert.equal(app.currentBeat, 0);
+    assert.equal(app.totalBeats, 0);
+    assert.equal(app.sessionName, "");
+    assert.equal(app._engine, null);
+    assert.equal(app._scroller, null);
+});
+
+test("is safe when no engine exists", function () {
+    const app = clawbackApp();
+    app.$refs = { chatArea: { innerHTML: "", parentElement: {} } };
+    // Should not throw
+    app.backToSessions();
+    assert.equal(app.view, "picker");
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);

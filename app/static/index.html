@@ -22,14 +22,62 @@
 </head>
 <body x-data="clawbackApp()">
     <header class="app-header">
+        <button class="app-header__back"
+                x-show="view === 'playback'"
+                @click="backToSessions()"
+                title="Back to sessions">&#8592; Sessions</button>
         <h1 class="app-title">Clawback</h1>
         <span class="app-subtitle" x-show="sessionName" x-text="sessionName"></span>
     </header>
 
     <main class="app-main">
-        <!-- Session picker (Issue #8) -->
-        <div class="placeholder" x-show="view === 'picker'">
-            <p>Clawback is running. Session picker coming soon.</p>
+        <!-- Session picker -->
+        <div x-show="view === 'picker'">
+            <!-- Loading sessions list -->
+            <div class="picker__loading" x-show="loadingSessions">
+                <div class="spinner"></div>
+                <p>Loading sessions&#8230;</p>
+            </div>
+
+            <!-- Loading a specific session -->
+            <div class="picker__loading" x-show="loadingSession && !loadingSessions">
+                <div class="spinner"></div>
+                <p>Loading session&#8230;</p>
+            </div>
+
+            <!-- Session picker content -->
+            <div class="picker" x-show="!loadingSessions && !loadingSession">
+                <!-- Session grid -->
+                <div class="picker__grid" x-show="sessions.length > 0">
+                    <template x-for="session in sessions" :key="session.id">
+                        <div class="picker__card" @click="loadSession(session)">
+                            <h3 class="picker__card-title" x-text="session.title"></h3>
+                            <p class="picker__card-desc" x-text="session.description"></p>
+                            <span class="picker__card-meta" x-text="session.beat_count + ' beats'"></span>
+                        </div>
+                    </template>
+                </div>
+
+                <p class="picker__empty" x-show="sessions.length === 0">
+                    No curated sessions available.
+                </p>
+
+                <!-- Upload area -->
+                <div class="picker__upload">
+                    <h3 class="picker__upload-title">Upload your own session</h3>
+                    <div class="picker__upload-zone"
+                         @dragover.prevent="$el.classList.add('picker__upload-zone--active')"
+                         @dragleave="$el.classList.remove('picker__upload-zone--active')"
+                         @drop.prevent="$el.classList.remove('picker__upload-zone--active'); handleFileDrop($event)">
+                        <p>Drop a <code>.jsonl</code> file here, or</p>
+                        <label class="picker__upload-btn">
+                            Browse files
+                            <input type="file" accept=".jsonl" @change="handleFileUpload($event)" hidden>
+                        </label>
+                    </div>
+                    <p class="picker__error" x-show="uploadError" x-text="uploadError"></p>
+                </div>
+            </div>
         </div>
 
         <!-- Playback view -->

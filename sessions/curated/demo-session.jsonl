@@ -1,0 +1,15 @@
+{"type":"progress","data":{"type":"hook_progress"},"uuid":"p1","timestamp":"2026-01-01T00:00:00Z"}
+{"type":"user","message":{"content":"Hello, can you check this file?"},"uuid":"u1","parentUuid":"p1","timestamp":"2026-01-01T00:00:01Z"}
+{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"The user wants me to check a file. Let me read it."}],"model":"claude-opus-4-6"},"uuid":"a1","parentUuid":"u1","timestamp":"2026-01-01T00:00:02Z"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Let me take a look at that file."}],"model":"claude-opus-4-6"},"uuid":"a2","parentUuid":"a1","timestamp":"2026-01-01T00:00:03Z"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/tmp/example.py"},"id":"tool1"}],"model":"claude-opus-4-6"},"uuid":"a3","parentUuid":"a2","timestamp":"2026-01-01T00:00:04Z"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool1","content":"def hello():\n    print('world')\n"}]},"uuid":"u2","parentUuid":"a3","timestamp":"2026-01-01T00:00:05Z"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"python /tmp/example.py"},"id":"tool2"}],"model":"claude-opus-4-6"},"uuid":"a4","parentUuid":"u2","timestamp":"2026-01-01T00:00:06Z"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool2","content":"world"}]},"uuid":"u3","parentUuid":"a4","timestamp":"2026-01-01T00:00:07Z"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"The file defines a `hello()` function that prints 'world'. I ran it and confirmed it works correctly."}],"model":"claude-opus-4-6"},"uuid":"a5","parentUuid":"u3","timestamp":"2026-01-01T00:00:08Z"}
+{"type":"user","message":{"content":"Thanks! Can you also check the config?"},"uuid":"u4","parentUuid":"a5","timestamp":"2026-01-01T00:00:09Z"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/tmp/config.json"},"id":"tool3"}],"model":"claude-opus-4-6"},"uuid":"a6","parentUuid":"u4","timestamp":"2026-01-01T00:00:10Z"}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"tool3","content":"{\"key\": \"value\"}"}]},"uuid":"u5","parentUuid":"a6","timestamp":"2026-01-01T00:00:11Z"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"The config looks good — it has a single key-value pair."}],"model":"claude-opus-4-6"},"uuid":"a7","parentUuid":"u5","timestamp":"2026-01-01T00:00:12Z"}
+{"type":"system","subtype":"info","content":"context compacted","uuid":"s1","timestamp":"2026-01-01T00:00:13Z"}
+{"type":"file-history-snapshot","messageId":"x","snapshot":{"timestamp":"2026-01-01T00:00:14Z"}}

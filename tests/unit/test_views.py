@@ -78,6 +78,18 @@ def test_index_script_load_order(client):
     )
 
 
+def test_index_has_session_picker(client):
+    """Index page includes the session picker UI with upload."""
+    html = client.get("/").data.decode()
+    assert "picker" in html, "session picker must be present"
+    assert "loadSession" in html, "session loading must be present"
+    assert 'type="file"' in html, "file upload input must be present"
+    assert ".jsonl" in html, "file upload must accept .jsonl files"
+    assert "backToSessions" in html, "back button must be present"
+    assert "handleFileUpload" in html, "file upload handler must be present"
+    assert "handleFileDrop" in html, "drag-and-drop handler must be present"
+
+
 def test_index_has_toolbar(client):
     """Index page includes the playback toolbar with all required controls."""
     html = client.get("/").data.decode()
