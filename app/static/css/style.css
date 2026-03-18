@@ -364,11 +364,102 @@ body {
 }
 
 /* -----------------------------------------------------------------------
+   Alpine.js cloak — hide elements until Alpine initializes
+   ----------------------------------------------------------------------- */
+[x-cloak] {
+    display: none !important;
+}
+
+/* -----------------------------------------------------------------------
+   Playback toolbar
+   ----------------------------------------------------------------------- */
+.toolbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--toolbar-height);
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 16px;
+    z-index: 20;
+}
+
+.toolbar__group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.toolbar__separator {
+    width: 1px;
+    height: 24px;
+    background-color: var(--color-border);
+    margin: 0 8px;
+}
+
+.toolbar__btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+    user-select: none;
+}
+
+.toolbar__btn:hover:not(:disabled) {
+    color: var(--color-text);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.toolbar__btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.toolbar__btn--play {
+    font-size: 1.25rem;
+    padding: 6px 14px;
+}
+
+.toolbar__btn--speed,
+.toolbar__btn--iw {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+}
+
+.toolbar__btn--active {
+    color: var(--color-accent);
+    border-color: var(--color-accent);
+    background-color: rgba(233, 69, 96, 0.1);
+}
+
+.toolbar__label {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-right: 4px;
+}
+
+.toolbar__progress {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* -----------------------------------------------------------------------
    Scroll-pause indicator
    ----------------------------------------------------------------------- */
 .scroll-pause-indicator {
     position: fixed;
-    bottom: 24px;
+    bottom: calc(var(--toolbar-height) + 16px);
     left: 50%;
     transform: translateX(-50%);
     background-color: var(--color-surface);
