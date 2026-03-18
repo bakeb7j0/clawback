@@ -40,6 +40,45 @@
         </div>
     </main>
 
+    <!-- Playback toolbar -->
+    <div class="toolbar" x-show="view === 'playback'" x-cloak>
+        <!-- Transport controls -->
+        <div class="toolbar__group">
+            <button class="toolbar__btn" @click="skipToStart()" :disabled="playbackState === 'READY'" title="Skip to start">⏮</button>
+            <button class="toolbar__btn" @click="previousBeat()" :disabled="currentBeat === 0" title="Previous beat">⏪</button>
+            <button class="toolbar__btn toolbar__btn--play" @click="togglePlay()" title="Play/Pause"
+                    x-text="playbackState === 'PLAYING' ? '⏸' : '▶'">▶</button>
+            <button class="toolbar__btn" @click="nextBeat()" :disabled="playbackState === 'COMPLETE'" title="Next beat">⏩</button>
+            <button class="toolbar__btn" @click="skipToEnd()" :disabled="playbackState === 'COMPLETE'" title="Skip to end">⏭</button>
+        </div>
+
+        <div class="toolbar__separator"></div>
+
+        <!-- Speed presets -->
+        <div class="toolbar__group">
+            <button class="toolbar__btn toolbar__btn--speed" :class="{ 'toolbar__btn--active': speed === 0.5 }" @click="setSpeed(0.5)">0.5x</button>
+            <button class="toolbar__btn toolbar__btn--speed" :class="{ 'toolbar__btn--active': speed === 1 }" @click="setSpeed(1)">1x</button>
+            <button class="toolbar__btn toolbar__btn--speed" :class="{ 'toolbar__btn--active': speed === 1.5 }" @click="setSpeed(1.5)">1.5x</button>
+            <button class="toolbar__btn toolbar__btn--speed" :class="{ 'toolbar__btn--active': speed === 2 }" @click="setSpeed(2)">2x</button>
+        </div>
+
+        <div class="toolbar__separator"></div>
+
+        <!-- Inner workings toggle -->
+        <div class="toolbar__group">
+            <span class="toolbar__label">&#9881; Inner workings:</span>
+            <button class="toolbar__btn toolbar__btn--iw" :class="{ 'toolbar__btn--active': innerWorkingsMode === 'collapsed' }" @click="setInnerWorkingsMode('collapsed')">Collapsed</button>
+            <button class="toolbar__btn toolbar__btn--iw" :class="{ 'toolbar__btn--active': innerWorkingsMode === 'expanded' }" @click="setInnerWorkingsMode('expanded')">Expanded</button>
+        </div>
+
+        <div class="toolbar__separator"></div>
+
+        <!-- Progress indicator -->
+        <div class="toolbar__group">
+            <span class="toolbar__progress" x-text="'Beat ' + currentBeat + ' / ' + totalBeats"></span>
+        </div>
+    </div>
+
     <!-- Scroll-pause indicator -->
     <div class="scroll-pause-indicator"
          x-show="playbackState === 'SCROLL_PAUSED'"

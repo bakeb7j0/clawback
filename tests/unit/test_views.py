@@ -78,6 +78,27 @@ def test_index_script_load_order(client):
     )
 
 
+def test_index_has_toolbar(client):
+    """Index page includes the playback toolbar with all required controls."""
+    html = client.get("/").data.decode()
+    assert 'class="toolbar"' in html, "toolbar must be present"
+    # Transport controls
+    assert "skipToStart" in html, "skip-to-start button must be present"
+    assert "togglePlay" in html, "play/pause button must be present"
+    assert "skipToEnd" in html, "skip-to-end button must be present"
+    assert "nextBeat" in html, "next-beat button must be present"
+    assert "previousBeat" in html, "previous-beat button must be present"
+    # Speed presets
+    assert "setSpeed(0.5)" in html, "0.5x speed button must be present"
+    assert "setSpeed(1)" in html, "1x speed button must be present"
+    assert "setSpeed(1.5)" in html, "1.5x speed button must be present"
+    assert "setSpeed(2)" in html, "2x speed button must be present"
+    # Inner workings toggle
+    assert "setInnerWorkingsMode" in html, "inner workings toggle must be present"
+    # Progress indicator
+    assert "totalBeats" in html, "progress indicator must be present"
+
+
 def test_index_cdn_versions_are_pinned(client):
     """CDN script URLs must use pinned versions, not floating ranges."""
     html = client.get("/").data.decode()
