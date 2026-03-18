@@ -246,3 +246,119 @@ body {
     border-top: 1px solid var(--color-border);
     margin: 0.75em 0;
 }
+
+/* -----------------------------------------------------------------------
+   Inner workings cards
+   ----------------------------------------------------------------------- */
+.iw-card {
+    align-self: flex-start;
+    width: 80%;
+    background-color: var(--color-inner-workings);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    animation: fadeSlideUp 0.3s ease-out;
+    overflow: hidden;
+}
+
+.iw-card__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.iw-card__header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.iw-card__icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.iw-card__summary {
+    flex: 1;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+
+.iw-card__toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.iw-card__toggle:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+.iw-card__body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+}
+
+/* Items within the expanded card */
+.iw-item {
+    padding: 8px 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.iw-item__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.iw-item__icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.iw-item__label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.iw-item__content {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--color-text-muted);
+}
+
+.iw-item__content pre {
+    margin: 0;
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+.iw-item__content pre code {
+    display: block;
+    padding: 8px 12px;
+    background-color: rgba(0, 0, 0, 0.3);
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.iw-item__content--scrollable {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.iw-item--error .iw-item__label {
+    color: var(--color-accent);
+}
