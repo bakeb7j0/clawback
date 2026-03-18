@@ -14,6 +14,7 @@ def test_index_loads_all_required_scripts(client):
     assert "parser.js" in html, "parser.js must be loaded"
     assert "playback.js" in html, "playback.js must be loaded"
     assert "renderer.js" in html, "renderer.js must be loaded"
+    assert "scroller.js" in html, "scroller.js must be loaded"
     assert "app.js" in html, "app.js must be loaded"
     assert "alpinejs" in html, "Alpine.js must be loaded"
     assert "marked" in html, "marked.js must be loaded"
@@ -36,6 +37,8 @@ def test_index_script_load_order(client):
             return "playback"
         if "renderer.js" in src:
             return "renderer"
+        if "scroller.js" in src:
+            return "scroller"
         if "app.js" in src:
             return "app"
         if "alpinejs" in src:
@@ -67,8 +70,8 @@ def test_index_script_load_order(client):
     assert order.index("playback") < order.index("renderer"), (
         "playback.js must load before renderer.js"
     )
-    assert order.index("renderer") < order.index("app"), (
-        "renderer.js must load before app.js"
+    assert order.index("scroller") < order.index("app"), (
+        "scroller.js must load before app.js"
     )
     assert order.index("app") < order.index("alpine"), (
         "app.js must load before Alpine.js"

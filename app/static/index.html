@@ -14,6 +14,7 @@
     <script defer src="/static/js/parser.js"></script>
     <script defer src="/static/js/playback.js"></script>
     <script defer src="/static/js/renderer.js"></script>
+    <script defer src="/static/js/scroller.js"></script>
     <script defer src="/static/js/app.js"></script>
     <!-- Alpine.js MUST be last — defer scripts execute in order, and Alpine
          needs clawbackApp() to be defined before it initializes -->
@@ -38,6 +39,14 @@
              :class="{ 'chat-area--show-meta': showBeatNumbers }">
         </div>
     </main>
+
+    <!-- Scroll-pause indicator -->
+    <div class="scroll-pause-indicator"
+         x-show="playbackState === 'SCROLL_PAUSED'"
+         x-transition
+         @click="resumePlayback()">
+        Playback paused &#8212; Click to resume &#9654;
+    </div>
 
 </body>
 </html>
