@@ -16,6 +16,18 @@
     --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
     --toolbar-height: 56px;
     --sidebar-width: 220px;
+
+    /* Annotation colors — used by callouts, inline editors, and section sidebar */
+    --color-annotation-note: #4A90D9;
+    --color-annotation-note-bg: rgba(74, 144, 217, 0.12);
+    --color-annotation-note-border: rgba(74, 144, 217, 0.3);
+    --color-annotation-warning: #F39C12;
+    --color-annotation-warning-bg: rgba(243, 156, 18, 0.12);
+    --color-annotation-warning-border: rgba(243, 156, 18, 0.3);
+    --color-annotation-artifact: #9B59B6;
+    --color-annotation-artifact-bg: rgba(155, 89, 182, 0.12);
+    --color-annotation-artifact-border: rgba(155, 89, 182, 0.3);
+    --color-annotation-error: #E74C3C;
 }
 
 /* Reset */
@@ -169,8 +181,8 @@ body {
 }
 
 .section-sidebar__delete:hover {
-    color: #E74C3C;
-    border-color: #E74C3C;
+    color: var(--color-annotation-error);
+    border-color: var(--color-annotation-error);
 }
 
 /* -----------------------------------------------------------------------
@@ -667,16 +679,18 @@ body {
     padding: 16px 20px;
     animation: fadeSlideUp 0.3s ease-out;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .callout--note {
-    background-color: rgba(74, 144, 217, 0.12);
-    border: 1px solid rgba(74, 144, 217, 0.3);
+    background-color: var(--color-annotation-note-bg);
+    border: 1px solid var(--color-annotation-note-border);
 }
 
 .callout--warning {
-    background-color: rgba(243, 156, 18, 0.12);
-    border: 1px solid rgba(243, 156, 18, 0.3);
+    background-color: var(--color-annotation-warning-bg);
+    border: 1px solid var(--color-annotation-warning-border);
 }
 
 .callout__header {
@@ -699,11 +713,11 @@ body {
 }
 
 .callout--note .callout__title {
-    color: #4A90D9;
+    color: var(--color-annotation-note);
 }
 
 .callout--warning .callout__title {
-    color: #F39C12;
+    color: var(--color-annotation-warning);
 }
 
 .callout__content {
@@ -1322,15 +1336,15 @@ body {
 }
 
 .inline-editor--note {
-    border-left: 3px solid #5B9BD5;
+    border-left: 3px solid var(--color-annotation-note);
 }
 
 .inline-editor--warning {
-    border-left: 3px solid #E67E22;
+    border-left: 3px solid var(--color-annotation-warning);
 }
 
 .inline-editor--artifact {
-    border-left: 3px solid #9B59B6;
+    border-left: 3px solid var(--color-annotation-artifact);
 }
 
 .inline-editor__header {
@@ -1396,7 +1410,7 @@ body {
 }
 
 .inline-editor__error {
-    color: #E74C3C;
+    color: var(--color-annotation-error);
     font-size: 0.8rem;
     min-height: 1.2em;
     margin-top: 4px;
