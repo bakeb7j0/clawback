@@ -58,7 +58,7 @@ function createElement(tag) {
             }
         },
         querySelector(sel) {
-            const match = sel.match(/\[data-beat-id="(\d+)"\]/);
+            const match = sel.match(/\[data-beat-id="([^"]+)"\]/);
             if (match) {
                 return (
                     this.children.find(
@@ -1071,6 +1071,98 @@ test("interleaves bubbles and inner workings cards correctly", () => {
     assert.equal(container.children.length, 3);
     assert.ok(container.children[0].classList.contains("bubble--user"));
     assert.ok(container.children[1].classList.contains("iw-card"));
+    assert.ok(container.children[2].classList.contains("bubble--assistant"));
+});
+
+// ---------------------------------------------------------------------------
+// renderBeat — callout annotations
+// ---------------------------------------------------------------------------
+console.log("\nrenderBeat — callout annotations");
+
+function makeCalloutBeat(id, style, content) {
+    return {
+        id: "callout-cal-" + id,
+        type: "callout",
+        category: "callout",
+        isCallout: true,
+        calloutStyle: style,
+        content: content || "Some callout content",
+        calloutId: "cal-" + id,
+        duration: 3,
+        group_id: null,
+    };
+}
+
+test("renders a note callout with correct CSS classes", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeCalloutBeat(1, "note"), container);
+    assert.ok(card, "should return the callout element");
+    assert.ok(card.classList.contains("callout"));
+    assert.ok(card.classList.contains("callout--note"));
+    assert.ok(!card.classList.contains("callout--warning"));
+    assert.equal(container.children.length, 1);
+});
+
+test("renders a warning callout with correct CSS classes", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeCalloutBeat(1, "warning"), container);
+    assert.ok(card.classList.contains("callout"));
+    assert.ok(card.classList.contains("callout--warning"));
+    assert.ok(!card.classList.contains("callout--note"));
+});
+
+test("note callout has correct icon and header", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeCalloutBeat(1, "note"), container);
+    const header = card.children.find((c) => c.classList.contains("callout__header"));
+    assert.ok(header, "should have a header");
+    const icon = header.children.find((c) => c.classList.contains("callout__icon"));
+    assert.equal(icon.textContent, "\uD83D\uDCDD");
+    const title = header.children.find((c) => c.classList.contains("callout__title"));
+    assert.equal(title.textContent, "Instructor Note");
+});
+
+test("warning callout has correct icon and header", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeCalloutBeat(1, "warning"), container);
+    const header = card.children.find((c) => c.classList.contains("callout__header"));
+    const icon = header.children.find((c) => c.classList.contains("callout__icon"));
+    assert.equal(icon.textContent, "\u26A0\uFE0F");
+    const title = header.children.find((c) => c.classList.contains("callout__title"));
+    assert.equal(title.textContent, "Warning");
+});
+
+test("callout content is rendered via marked + DOMPurify", () => {
+    markedCalls = [];
+    const container = makeContainer();
+    const card = renderBeat(makeCalloutBeat(1, "note", "**bold** text"), container);
+    assert.ok(markedCalls.includes("**bold** text"), "marked.parse should be called");
+    const content = card.children.find((c) => c.classList.contains("callout__content"));
+    assert.ok(content.innerHTML.includes("**bold** text"), "content should have sanitized HTML");
+});
+
+test("callout sets data-beat-id from beat.id", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeCalloutBeat(42, "note"), container);
+    assert.equal(card.dataset.beatId, "callout-cal-42");
+});
+
+test("callout can be removed via removeBeat", () => {
+    const container = makeContainer();
+    renderBeat(makeCalloutBeat(1, "note"), container);
+    assert.equal(container.children.length, 1);
+    removeBeat({ id: "callout-cal-1", type: "callout", category: "callout" }, container);
+    assert.equal(container.children.length, 0);
+});
+
+test("callouts interleave with conversation bubbles", () => {
+    const container = makeContainer();
+    renderBeat(makeBeat(0, { type: "user_message", content: "Hello" }), container);
+    renderBeat(makeCalloutBeat(1, "note", "Pay attention"), container);
+    renderBeat(makeBeat(1, { type: "assistant_message", content: "Hi" }), container);
+    assert.equal(container.children.length, 3);
+    assert.ok(container.children[0].classList.contains("bubble--user"));
+    assert.ok(container.children[1].classList.contains("callout--note"));
     assert.ok(container.children[2].classList.contains("bubble--assistant"));
 });
 

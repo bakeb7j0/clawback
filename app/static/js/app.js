@@ -24,6 +24,8 @@ function clawbackApp() {
         progressSegments: [{ width: 100, color: null }],
         _engine: null,
         _scroller: null,
+        _conversationBeatsRendered: 0,
+        _beatIdToMergedIndex: null,
 
         /** Called by Alpine.js on component initialization. */
         init() {
@@ -150,6 +152,8 @@ function clawbackApp() {
             this.activeSection = null;
             this.sectionList = [];
             this.progressSegments = [{ width: 100, color: null }];
+            this._conversationBeatsRendered = 0;
+            this._beatIdToMergedIndex = null;
         },
 
         /**
@@ -168,6 +172,7 @@ function clawbackApp() {
             this.totalBeats = beats.length;
             this.speed = 1.0;
             this.innerWorkingsMode = "collapsed";
+            this._conversationBeatsRendered = 0;
 
             // Initialize annotations if available
             if (typeof ClawbackAnnotations !== "undefined") {
@@ -182,6 +187,9 @@ function clawbackApp() {
                 this.activeSection = null;
                 this.progressSegments = [{ width: 100, color: null }];
             }
+
+            // Build merged beat array with callout pseudo-beats interleaved
+            var merged = this._buildMergedBeats(beats);
 
             var chatArea = this.$refs.chatArea;
             chatArea.innerHTML = "";
@@ -200,10 +208,13 @@ function clawbackApp() {
             });
 
             this._engine = new PlaybackEngine({
-                beats: beats,
+                beats: merged,
                 onBeat: function (beat) {
                     ClawbackRenderer.renderBeat(beat, chatArea);
-                    self.currentBeat = self._engine.currentIndex;
+                    if (!beat.isCallout) {
+                        self._conversationBeatsRendered++;
+                    }
+                    self.currentBeat = self._conversationBeatsRendered;
                     self._updateActiveSection();
                     if (self._scroller) {
                         self._scroller.scrollToBottom();
@@ -211,7 +222,10 @@ function clawbackApp() {
                 },
                 onRemoveBeat: function (beat) {
                     ClawbackRenderer.removeBeat(beat, chatArea);
-                    self.currentBeat = self._engine.currentIndex;
+                    if (!beat.isCallout) {
+                        self._conversationBeatsRendered--;
+                    }
+                    self.currentBeat = self._conversationBeatsRendered;
                     self._updateActiveSection();
                 },
                 onStateChange: function (newState, oldState) {
@@ -303,8 +317,12 @@ function clawbackApp() {
         /** Jump playback to the start of a section. */
         jumpToSection(section) {
             if (!this._engine) return;
-            this._engine.jumpToBeat(section.start_beat + 1);
-            this.currentBeat = this._engine.currentIndex;
+            var mergedIndex = this._beatIdToMergedIndex
+                ? this._beatIdToMergedIndex[section.start_beat]
+                : section.start_beat;
+            if (mergedIndex === undefined) mergedIndex = section.start_beat;
+            this._engine.jumpToBeat(mergedIndex + 1);
+            this.currentBeat = this._conversationBeatsRendered;
             this._updateActiveSection();
             if (this._scroller) {
                 this._scroller.scrollToBottom();
@@ -329,6 +347,65 @@ function clawbackApp() {
             } else {
                 this.activeSection = null;
             }
+        },
+
+        /**
+         * Build merged beat array with callout pseudo-beats interleaved.
+         * Also builds _beatIdToMergedIndex for section navigation.
+         *
+         * @param {Array<Object>} beats - Original conversation beats
+         * @returns {Array<Object>} Merged array with callouts inserted
+         */
+        _buildMergedBeats(beats) {
+            var hasAnnotations = typeof ClawbackAnnotations !== "undefined" &&
+                ClawbackAnnotations.hasAnnotations();
+
+            if (!hasAnnotations) {
+                this._beatIdToMergedIndex = null;
+                return beats;
+            }
+
+            var merged = [];
+            var indexMap = {};
+
+            for (var i = 0; i < beats.length; i++) {
+                indexMap[beats[i].id] = merged.length;
+                merged.push(beats[i]);
+
+                var annotations = ClawbackAnnotations.getAnnotationsAfterBeat(beats[i].id);
+                for (var j = 0; j < annotations.length; j++) {
+                    if (annotations[j].type === "callout") {
+                        var callout = annotations[j].data;
+                        merged.push({
+                            type: "callout",
+                            category: "callout",
+                            isCallout: true,
+                            calloutStyle: callout.style || "note",
+                            content: callout.content || "",
+                            calloutId: callout.id,
+                            id: "callout-" + callout.id,
+                            duration: this._calculateCalloutDuration(callout.content),
+                            group_id: null,
+                        });
+                    }
+                }
+            }
+
+            this._beatIdToMergedIndex = indexMap;
+            return merged;
+        },
+
+        /** Count words in a text string. */
+        _countWords(text) {
+            if (!text) return 0;
+            return text.split(/\s+/).filter(Boolean).length;
+        },
+
+        /** Calculate reading duration for a callout based on word count. */
+        _calculateCalloutDuration(content) {
+            var words = this._countWords(content);
+            var rawSeconds = (words / 100) * 60;
+            return Math.max(1.0, rawSeconds);
         },
 
         /** Compute progress bar segments from section data. */

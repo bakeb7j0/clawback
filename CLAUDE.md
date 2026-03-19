@@ -51,6 +51,7 @@ Before asking "May I have your approval to commit?", present this checklist:
 - [ ] **Unit Tests Created** - I have WRITTEN unit tests for all new functionality introduced in this commit
 - [ ] **All Tests Pass** - I have RUN the test suite and confirmed all tests pass (not "they should pass" - I actually ran them)
 - [ ] **Scripts Actually Tested** - For any new scripts (shell, Python, etc.), I have EXECUTED them and verified they work. Linting is NOT testing. Unless execution poses a serious threat of destruction, I must RUN the script and verify it works end-to-end.
+- [ ] **Code Review Passed** - I have RUN the code-reviewer agent (`subagent_type: "feature-dev:code-reviewer"`) on all changed files and addressed any high-priority issues it found. This must happen BEFORE presenting the checklist to the user.
 
 ### CRITICAL: Linting Is Not Testing
 

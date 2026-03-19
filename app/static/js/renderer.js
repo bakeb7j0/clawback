@@ -26,6 +26,10 @@ var _defaultExpanded = false;
  * @returns {HTMLElement|null} The created/updated element, or null if skipped
  */
 function renderBeat(beat, container) {
+    if (beat.type === "callout") {
+        return _renderCalloutBeat(beat, container);
+    }
+
     if (beat.category === "inner_working" && beat.group_id !== null) {
         return _renderInnerWorkingBeat(beat, container);
     }
@@ -106,6 +110,45 @@ function toggleAllInnerWorkings(_container, expanded) {
 function resetGroups() {
     _activeGroups.clear();
     _defaultExpanded = false;
+}
+
+// ---------------------------------------------------------------------------
+// Internal — callout rendering
+// ---------------------------------------------------------------------------
+
+function _renderCalloutBeat(beat, container) {
+    var card = document.createElement("div");
+    card.classList.add("callout");
+    card.dataset.beatId = String(beat.id);
+
+    var isWarning = beat.calloutStyle === "warning";
+    card.classList.add(isWarning ? "callout--warning" : "callout--note");
+
+    var header = document.createElement("div");
+    header.classList.add("callout__header");
+
+    var icon = document.createElement("span");
+    icon.classList.add("callout__icon");
+    icon.textContent = isWarning ? "\u26A0\uFE0F" : "\uD83D\uDCDD";
+
+    var title = document.createElement("span");
+    title.classList.add("callout__title");
+    title.textContent = isWarning ? "Warning" : "Instructor Note";
+
+    header.appendChild(icon);
+    header.appendChild(title);
+
+    var content = document.createElement("div");
+    content.classList.add("callout__content");
+    content.innerHTML = DOMPurify.sanitize(marked.parse(beat.content));
+    content.querySelectorAll("pre code").forEach(function (block) {
+        hljs.highlightElement(block);
+    });
+
+    card.appendChild(header);
+    card.appendChild(content);
+    container.appendChild(card);
+    return card;
 }
 
 // ---------------------------------------------------------------------------
