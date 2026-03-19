@@ -623,6 +623,177 @@ test("no sections produces single default segment", function () {
 });
 
 // ---------------------------------------------------------------------------
+// Callout interleaving
+// ---------------------------------------------------------------------------
+console.log("\ncallout interleaving");
+
+function makeCalloutAnnotations() {
+    return {
+        sections: [],
+        callouts: [
+            { id: "cal-1", after_beat: 1, style: "note", content: "Pay attention here" },
+            { id: "cal-2", after_beat: 3, style: "warning", content: "This is a complex topic with many words to read" },
+        ],
+        artifacts: [],
+    };
+}
+
+test("merged beats include callout pseudo-beats", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    // 5 conversation beats + 2 callouts = 7 merged beats
+    assert.equal(app._engine.beats.length, 7);
+});
+
+test("totalBeats tracks conversation beats only", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    assert.equal(app.totalBeats, 5);
+});
+
+test("currentBeat tracks conversation beats only during playback", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    // Advance through: beat0, beat1, callout(after_beat=1), beat2
+    app._engine.next(); // beat 0 → conversationBeats=1
+    assert.equal(app.currentBeat, 1);
+    app._engine.next(); // beat 1 → conversationBeats=2
+    assert.equal(app.currentBeat, 2);
+    app._engine.next(); // callout → conversationBeats still 2
+    assert.equal(app.currentBeat, 2);
+    app._engine.next(); // beat 2 → conversationBeats=3
+    assert.equal(app.currentBeat, 3);
+});
+
+test("previous decrements conversation beat count correctly", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    // Advance past beat 0, beat 1, callout
+    app._engine.next(); // beat 0
+    app._engine.next(); // beat 1
+    app._engine.next(); // callout
+    assert.equal(app.currentBeat, 2);
+    // Go back through callout
+    app._engine.previous(); // removes callout
+    assert.equal(app.currentBeat, 2, "callout removal should not change conversation count");
+    app._engine.previous(); // removes beat 1
+    assert.equal(app.currentBeat, 1);
+});
+
+test("skipToEnd counts all conversation beats", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    app._engine.skipToEnd();
+    assert.equal(app.currentBeat, 5);
+    assert.equal(app.totalBeats, 5);
+});
+
+test("skipToStart resets conversation beat count to 0", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    app._engine.skipToEnd();
+    app._engine.skipToStart();
+    assert.equal(app.currentBeat, 0);
+    assert.equal(app._conversationBeatsRendered, 0);
+});
+
+test("callout pseudo-beats have correct structure", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    var merged = app._engine.beats;
+    // Callout should be at index 2 (after beat 0 and beat 1)
+    var callout = merged[2];
+    assert.equal(callout.type, "callout");
+    assert.equal(callout.isCallout, true);
+    assert.equal(callout.calloutStyle, "note");
+    assert.equal(callout.content, "Pay attention here");
+    assert.equal(callout.id, "callout-cal-1");
+    assert.ok(callout.duration >= 1.0, "duration should be at least 1s");
+    assert.equal(callout.group_id, null);
+});
+
+test("callout duration calculated from word count at 100 WPM", function () {
+    const app = makeApp();
+    // 10 words → (10/100)*60 = 6 seconds
+    var tenWords = "one two three four five six seven eight nine ten";
+    var annotations = {
+        sections: [], artifacts: [],
+        callouts: [{ id: "cal-1", after_beat: 0, style: "note", content: tenWords }],
+    };
+    app.startPlayback(makeBeats(3), "Test", annotations);
+    var callout = app._engine.beats[1]; // after beat 0
+    assert.equal(callout.duration, 6);
+});
+
+test("callout duration clamps to minimum 1 second", function () {
+    const app = makeApp();
+    var annotations = {
+        sections: [], artifacts: [],
+        callouts: [{ id: "cal-1", after_beat: 0, style: "note", content: "short" }],
+    };
+    app.startPlayback(makeBeats(3), "Test", annotations);
+    var callout = app._engine.beats[1];
+    assert.equal(callout.duration, 1.0);
+});
+
+test("sessions without callouts play identically to v1.0", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test");
+    assert.equal(app._engine.beats.length, 5, "no extra beats injected");
+    assert.equal(app._beatIdToMergedIndex, null, "no index map needed");
+    app._engine.next();
+    assert.equal(app.currentBeat, 1);
+    app._engine.next();
+    assert.equal(app.currentBeat, 2);
+});
+
+test("sessions with empty annotations play identically to v1.0", function () {
+    const app = makeApp();
+    var emptyAnnotations = { sections: [], callouts: [], artifacts: [] };
+    app.startPlayback(makeBeats(5), "Test", emptyAnnotations);
+    assert.equal(app._engine.beats.length, 5, "no extra beats injected");
+});
+
+test("beatIdToMergedIndex maps conversation beat IDs to merged indices", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    // beats: [b0, b1, cal1, b2, b3, cal2, b4]
+    assert.equal(app._beatIdToMergedIndex[0], 0); // beat 0 at merged index 0
+    assert.equal(app._beatIdToMergedIndex[1], 1); // beat 1 at merged index 1
+    assert.equal(app._beatIdToMergedIndex[2], 3); // beat 2 at merged index 3 (after callout)
+    assert.equal(app._beatIdToMergedIndex[3], 4); // beat 3 at merged index 4
+    assert.equal(app._beatIdToMergedIndex[4], 6); // beat 4 at merged index 6 (after callout)
+});
+
+test("jumpToSection uses merged index for correct navigation", function () {
+    const app = makeApp();
+    var annotations = {
+        sections: [
+            { id: "sec-1", start_beat: 3, end_beat: 4, label: "Section", color: "blue" },
+        ],
+        callouts: [
+            { id: "cal-1", after_beat: 1, style: "note", content: "A note" },
+        ],
+        artifacts: [],
+    };
+    app.startPlayback(makeBeats(6), "Test", annotations);
+    // merged: [b0, b1, cal1, b2, b3, b4, b5]
+    // beat 3 is at merged index 4
+    app.jumpToSection(annotations.sections[0]);
+    // After jump, conversation beats 0-3 should be rendered = 4
+    assert.equal(app.currentBeat, 4);
+});
+
+test("backToSessions resets callout state", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeCalloutAnnotations());
+    app._engine.skipToEnd();
+    app.backToSessions();
+    assert.equal(app._conversationBeatsRendered, 0);
+    assert.equal(app._beatIdToMergedIndex, null);
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);

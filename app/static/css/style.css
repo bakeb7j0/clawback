@@ -473,6 +473,92 @@ body {
 }
 
 /* -----------------------------------------------------------------------
+   Callout annotation cards
+   ----------------------------------------------------------------------- */
+.callout {
+    align-self: center;
+    width: 70%;
+    max-width: 560px;
+    border-radius: 12px;
+    padding: 16px 20px;
+    animation: fadeSlideUp 0.3s ease-out;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.callout--note {
+    background-color: rgba(74, 144, 217, 0.12);
+    border: 1px solid rgba(74, 144, 217, 0.3);
+}
+
+.callout--warning {
+    background-color: rgba(243, 156, 18, 0.12);
+    border: 1px solid rgba(243, 156, 18, 0.3);
+}
+
+.callout__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.callout__icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.callout__title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.callout--note .callout__title {
+    color: #4A90D9;
+}
+
+.callout--warning .callout__title {
+    color: #F39C12;
+}
+
+.callout__content {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--color-text);
+}
+
+.callout__content p {
+    margin-bottom: 0.5em;
+}
+
+.callout__content p:last-child {
+    margin-bottom: 0;
+}
+
+.callout__content code {
+    font-family: var(--font-mono);
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.callout__content pre {
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.5em 0;
+}
+
+.callout__content pre code {
+    display: block;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    font-size: 0.85em;
+    line-height: 1.5;
+}
+
+/* -----------------------------------------------------------------------
    Inner workings cards
    ----------------------------------------------------------------------- */
 .iw-card {
