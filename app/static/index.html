@@ -108,7 +108,8 @@
             <div class="chat-area"
                  x-ref="chatArea"
                  x-show="view === 'playback'"
-                 :class="{ 'chat-area--show-meta': showBeatNumbers }">
+                 :class="{ 'chat-area--show-meta': showBeatNumbers, 'chat-area--editing': editMode }"
+                 @click="handleChatAreaClick($event)">
             </div>
         </main>
     </div>
@@ -156,6 +157,16 @@
 
         <div class="toolbar__separator"></div>
 
+        <!-- Edit mode toggle -->
+        <div class="toolbar__group">
+            <button class="toolbar__btn toolbar__btn--iw"
+                    :class="{ 'toolbar__btn--active': editMode }"
+                    @click="toggleEditMode()"
+                    title="Toggle annotation editing">&#9998; Edit</button>
+        </div>
+
+        <div class="toolbar__separator"></div>
+
         <!-- Progress bar and beat counter -->
         <div class="toolbar__group toolbar__group--progress">
             <div class="toolbar__bar">
@@ -194,6 +205,27 @@
         </div>
         <div class="artifact-panel__content" x-ref="artifactPanelContent"></div>
     </div>
+
+    <!-- Context menu for annotation editing -->
+    <div class="context-menu"
+         x-show="_contextMenu"
+         :style="_contextMenu ? 'left:' + _contextMenu.x + 'px;top:' + _contextMenu.y + 'px' : ''"
+         x-cloak>
+        <template x-for="item in (_contextMenu ? _contextMenu.items : [])" :key="item.action">
+            <button class="context-menu__item"
+                    @click="handleContextMenuAction(item.action)">
+                <span class="context-menu__icon" x-text="item.icon"></span>
+                <span x-text="item.label"></span>
+            </button>
+        </template>
+    </div>
+
+    <!-- Edit toast notification -->
+    <div class="edit-toast"
+         x-show="editToast"
+         x-transition
+         x-cloak
+         x-text="editToast"></div>
 
     <!-- Scroll-pause indicator -->
     <div class="scroll-pause-indicator"
