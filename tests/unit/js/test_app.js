@@ -1418,6 +1418,13 @@ console.log("\ninline annotation editors — callout and artifact creation");
 /**
  * Create a mock chat area with a querySelector that finds beat elements.
  * Uses a simple registry of elements keyed by their beat ID selector.
+
+// Annotation editing and deletion
+// ---------------------------------------------------------------------------
+console.log("\nannotation editing and deletion");
+
+/**
+ * Create a mock chat area with querySelector support for annotation elements.
  */
 function makeMockChatArea() {
     var children = [];
@@ -1426,10 +1433,10 @@ function makeMockChatArea() {
         parentElement: {},
         _elements: {},
         querySelector: function (sel) {
-            // Match selectors like [data-beat-id="3"].bubble
-            var m = sel.match(/\[data-beat-id="(\d+)"\]\.(\w+)/);
+            // Match [data-beat-id="X"].class or [data-beat-id="X"]
+            var m = sel.match(/\[data-beat-id="([^"]+)"\](?:\.(\w+))?/);
             if (m) {
-                var key = m[1] + "." + m[2];
+                var key = m[2] ? m[1] + "." + m[2] : m[1];
                 return area._elements[key] || null;
             }
             return null;
@@ -1629,9 +1636,69 @@ test("_saveArtifact creates annotation and dismisses editor", function () {
     assert.equal(found.content, "console.log('hi');");
     assert.equal(found.after_beat, 3);
     assert.ok(saveCalls > 0, "save should be called");
-    // Verify rendered element was inserted after the beat
     assert.equal(beatEl._inserted.length, 2, "form + annotation inserted");
     assert.equal(beatEl._inserted[1].pos, "afterend", "annotation at afterend");
+});
+
+function addElementToChatArea(chatArea, beatId, cssClass) {
+    var inserted = [];
+    var removed = false;
+    var el = {
+        dataset: { beatId: String(beatId) },
+        classList: { contains: function (cls) { return cls === cssClass; } },
+        insertAdjacentElement: function (pos, child) { inserted.push({ pos: pos, child: child }); },
+        remove: function () { removed = true; },
+        get _inserted() { return inserted; },
+        get _removed() { return removed; },
+        style: {},
+    };
+    chatArea._elements[beatId + "." + cssClass] = el;
+    chatArea._elements[beatId] = el;
+    return el;
+}
+
+test("_activeEditForm defaults to null", function () {
+    const app = makeApp(5);
+    assert.equal(app._activeEditForm, null);
+});
+
+test("_parseAnnotationId extracts callout ID", function () {
+    const app = makeApp(5);
+    var parsed = app._parseAnnotationId("callout-cal-3");
+    assert.deepEqual(parsed, { annotationId: "cal-3", type: "callout" });
+});
+
+test("_parseAnnotationId extracts artifact ID", function () {
+    const app = makeApp(5);
+    var parsed = app._parseAnnotationId("artifact-art-7");
+    assert.deepEqual(parsed, { annotationId: "art-7", type: "artifact" });
+});
+
+test("_parseAnnotationId returns null for non-annotation IDs", function () {
+    const app = makeApp(5);
+    assert.equal(app._parseAnnotationId("3"), null);
+    assert.equal(app._parseAnnotationId(null), null);
+    assert.equal(app._parseAnnotationId(""), null);
+});
+
+test("delete-annotation removes callout from data and DOM", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+    saveCalls = 0;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(2, "note", "Test note");
+    var domId = "callout-" + callout.id;
+    var el = addElementToChatArea(chatArea, domId, "callout");
+
+    app._contextMenu = { beatId: domId, isAnnotation: true, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("delete-annotation");
+
+    assert.equal(el._removed, true, "DOM element should be removed");
+    assert.equal(ClawbackAnnotations.getCallouts().length, 0, "callout should be deleted from data");
+    assert.ok(saveCalls > 0, "save should be called");
+    assert.equal(app.editToast, "Annotation deleted");
 });
 
 test("opening a new editor dismisses existing one", function () {
@@ -1669,27 +1736,237 @@ test("Escape priority: form > pending > inline editor > context menu > artifact"
     app._sectionForm = { beatId: 0, label: "T", color: "blue" };
     app._pendingSection = { startBeat: 0, label: "T", color: "blue" };
     app._openCalloutEditor(0, "note");
+
+    var callout = ClawbackAnnotations.createCallout(2, "note", "Test note");
+    var domId = "callout-" + callout.id;
+    var el = addElementToChatArea(chatArea, domId, "callout");
+
+    app._contextMenu = { beatId: domId, isAnnotation: true, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("delete-annotation");
+
+    assert.equal(el._removed, true, "DOM element should be removed");
+    assert.equal(ClawbackAnnotations.getCallouts().length, 0, "callout should be deleted from data");
+    assert.ok(saveCalls > 0, "save should be called");
+    assert.equal(app.editToast, "Annotation deleted");
+});
+
+test("delete-annotation removes artifact from data and DOM", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+    saveCalls = 0;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var artifact = ClawbackAnnotations.createArtifact(1, "Title", "Desc", "markdown", "Content");
+    var domId = "artifact-" + artifact.id;
+    addElementToChatArea(chatArea, domId, "artifact-card");
+
+    app._contextMenu = { beatId: domId, isAnnotation: true, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("delete-annotation");
+
+    assert.equal(ClawbackAnnotations.getArtifacts().length, 0, "artifact should be deleted");
+    assert.ok(saveCalls > 0, "save should be called");
+});
+
+test("deleteSection removes section and updates sidebar", function () {
+    const app = makeApp();
+    var annotations = {
+        sections: [{ id: "sec-1", start_beat: 0, end_beat: 3, label: "Intro", color: "blue" }],
+        callouts: [],
+        artifacts: [],
+    };
+    app.startPlayback(makeBeats(8), "Test", annotations);
+    assert.equal(app.sectionList.length, 1);
+    assert.equal(app.showSections, true);
+    saveCalls = 0;
+
+    app.deleteSection("sec-1");
+
+    assert.equal(app.sectionList.length, 0, "section should be removed from list");
+    assert.equal(app.showSections, false, "sidebar should be hidden");
+    assert.ok(saveCalls > 0, "save should be called");
+});
+
+test("edit-annotation opens callout edit form pre-populated", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(2, "warning", "Original text");
+    var domId = "callout-" + callout.id;
+    addElementToChatArea(chatArea, domId, "callout");
+
+    app._contextMenu = { beatId: domId, isAnnotation: true, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("edit-annotation");
+
+    assert.notEqual(app._activeEditForm, null, "edit form should be open");
+    assert.equal(app._activeEditForm.type, "callout");
+    assert.equal(app._activeEditForm.annotationId, callout.id);
+    assert.equal(app._activeEditForm.textarea.value, "Original text");
+});
+
+test("edit-annotation opens artifact edit form pre-populated", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var artifact = ClawbackAnnotations.createArtifact(1, "My Title", "My Desc", "code", "var x = 1;");
+    var domId = "artifact-" + artifact.id;
+    addElementToChatArea(chatArea, domId, "artifact-card");
+
+    app._contextMenu = { beatId: domId, isAnnotation: true, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("edit-annotation");
+
+    assert.notEqual(app._activeEditForm, null, "edit form should be open");
+    assert.equal(app._activeEditForm.type, "artifact");
+    assert.equal(app._activeEditForm.titleInput.value, "My Title");
+    assert.equal(app._activeEditForm.descInput.value, "My Desc");
+    assert.equal(app._activeEditForm.typeSelect.value, "code");
+    assert.equal(app._activeEditForm.textarea.value, "var x = 1;");
+});
+
+test("_saveCalloutEdit updates annotation data", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+    saveCalls = 0;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(2, "note", "Old text");
+    var domId = "callout-" + callout.id;
+    addElementToChatArea(chatArea, domId, "callout");
+
+    app._openCalloutEditForm(domId, callout);
+    app._activeEditForm.textarea.value = "New text";
+    app._saveCalloutEdit();
+
+    assert.equal(app._activeEditForm, null, "form should be dismissed");
+    var updated = ClawbackAnnotations.getCallouts()[0];
+    assert.equal(updated.content, "New text");
+    assert.ok(saveCalls > 0, "save should be called");
+});
+
+test("_saveCalloutEdit rejects empty content", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(0, "note", "Old");
+    var domId = "callout-" + callout.id;
+    addElementToChatArea(chatArea, domId, "callout");
+
+    app._openCalloutEditForm(domId, callout);
+    app._activeEditForm.textarea.value = "   ";
+    app._saveCalloutEdit();
+
+    assert.notEqual(app._activeEditForm, null, "form should stay open");
+    assert.equal(app._activeEditForm.errorMsg.textContent, "Content cannot be empty");
+});
+
+test("_saveArtifactEdit updates annotation data", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+    saveCalls = 0;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var artifact = ClawbackAnnotations.createArtifact(1, "Old Title", "Old Desc", "markdown", "Old content");
+    var domId = "artifact-" + artifact.id;
+    addElementToChatArea(chatArea, domId, "artifact-card");
+
+    app._openArtifactEditForm(domId, artifact);
+    app._activeEditForm.titleInput.value = "New Title";
+    app._activeEditForm.descInput.value = "New Desc";
+    app._activeEditForm.typeSelect.value = "code";
+    app._activeEditForm.textarea.value = "New content";
+    app._saveArtifactEdit();
+
+    assert.equal(app._activeEditForm, null, "form should be dismissed");
+    var updated = ClawbackAnnotations.getArtifacts()[0];
+    assert.equal(updated.title, "New Title");
+    assert.equal(updated.description, "New Desc");
+    assert.equal(updated.content_type, "code");
+    assert.equal(updated.content, "New content");
+    assert.ok(saveCalls > 0, "save should be called");
+});
+
+test("_saveArtifactEdit rejects empty title", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var artifact = ClawbackAnnotations.createArtifact(0, "T", "", "markdown", "C");
+    var domId = "artifact-" + artifact.id;
+    addElementToChatArea(chatArea, domId, "artifact-card");
+
+    app._openArtifactEditForm(domId, artifact);
+    app._activeEditForm.titleInput.value = "";
+    app._saveArtifactEdit();
+
+    assert.notEqual(app._activeEditForm, null, "form should stay open");
+    assert.equal(app._activeEditForm.errorMsg.textContent, "Title cannot be empty");
+});
+
+test("_dismissEditForm restores hidden card", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(0, "note", "Text");
+    var domId = "callout-" + callout.id;
+    var el = addElementToChatArea(chatArea, domId, "callout");
+
+    app._openCalloutEditForm(domId, callout);
+    assert.equal(el.style.display, "none", "card should be hidden");
+    app._dismissEditForm();
+    assert.equal(el.style.display, "", "card should be restored");
+    assert.equal(app._activeEditForm, null);
+});
+
+test("Escape dismisses edit form", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(0, "note", "Text");
+    var domId = "callout-" + callout.id;
+    addElementToChatArea(chatArea, domId, "callout");
+
+    app._openCalloutEditForm(domId, callout);
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._activeEditForm, null, "form should be dismissed");
+});
+
+test("Escape priority: edit form > context menu > artifact", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+    app.$refs.artifactPanelContent = { innerHTML: "" };
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(0, "note", "Text");
+    var domId = "callout-" + callout.id;
+    addElementToChatArea(chatArea, domId, "callout");
+
+    app._openCalloutEditForm(domId, callout);
     app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
     app.artifactOpen = true;
 
     app.handleKeydown(makeKeyEvent("Escape"));
-    assert.equal(app._sectionForm, null, "form dismissed first");
-    assert.notEqual(app._pendingSection, null, "pending still active");
+    assert.equal(app._activeEditForm, null, "edit form dismissed first");
+    assert.notEqual(app._contextMenu, null);
 
     app.handleKeydown(makeKeyEvent("Escape"));
-    assert.equal(app._pendingSection, null, "pending dismissed second");
-    assert.notEqual(app._inlineEditor, null, "inline editor still active");
+    assert.equal(app._contextMenu, null, "context menu dismissed second");
 
     app.handleKeydown(makeKeyEvent("Escape"));
-    assert.equal(app._inlineEditor, null, "inline editor dismissed third");
-    assert.notEqual(app._contextMenu, null, "context menu still active");
-
-    app.handleKeydown(makeKeyEvent("Escape"));
-    assert.equal(app._contextMenu, null, "context menu dismissed fourth");
-    assert.equal(app.artifactOpen, true, "artifact still open");
-
-    app.handleKeydown(makeKeyEvent("Escape"));
-    assert.equal(app.artifactOpen, false, "artifact dismissed last");
+    assert.equal(app.artifactOpen, false, "artifact dismissed third");
 });
 
 test("Escape works from INPUT elements for form dismissal", function () {
@@ -1963,6 +2240,80 @@ test("unique IDs are generated for artifacts", function () {
     assert.notEqual(artifacts[0].id, artifacts[1].id, "IDs should be unique");
     assert.ok(artifacts[0].id.startsWith("art-"), "should have art- prefix");
     assert.ok(artifacts[1].id.startsWith("art-"), "should have art- prefix");
+});
+
+test("backToSessions dismisses edit form", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(0, "note", "T");
+    addElementToChatArea(chatArea, "callout-" + callout.id, "callout");
+
+    app._openCalloutEditForm("callout-" + callout.id, callout);
+    app.backToSessions();
+    assert.equal(app._activeEditForm, null);
+});
+
+test("clicking empty space dismisses edit form", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+    app.editMode = true;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(0, "note", "T");
+    addElementToChatArea(chatArea, "callout-" + callout.id, "callout");
+
+    app._openCalloutEditForm("callout-" + callout.id, callout);
+    app.handleChatAreaClick(makeClickEvent(100, 100, null));
+    assert.equal(app._activeEditForm, null);
+});
+
+test("_findAnnotation finds callout by ID", function () {
+    const app = makeApp(5);
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(0, "note", "Find me");
+    var found = app._findAnnotation(callout.id);
+    assert.ok(found);
+    assert.equal(found.content, "Find me");
+});
+
+test("_findAnnotation returns null for unknown ID", function () {
+    const app = makeApp(5);
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    assert.equal(app._findAnnotation("nonexistent"), null);
+});
+
+test("transport buttons dismiss edit form", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+    var callout = ClawbackAnnotations.createCallout(0, "note", "T");
+    addElementToChatArea(chatArea, "callout-" + callout.id, "callout");
+
+    // nextBeat dismisses
+    app._openCalloutEditForm("callout-" + callout.id, callout);
+    app.nextBeat();
+    assert.equal(app._activeEditForm, null, "nextBeat should dismiss");
+
+    // previousBeat dismisses
+    app._openCalloutEditForm("callout-" + callout.id, callout);
+    app.previousBeat();
+    assert.equal(app._activeEditForm, null, "previousBeat should dismiss");
+
+    // skipToStart dismisses
+    app._openCalloutEditForm("callout-" + callout.id, callout);
+    app.skipToStart();
+    assert.equal(app._activeEditForm, null, "skipToStart should dismiss");
+
+    // skipToEnd dismisses
+    app._openCalloutEditForm("callout-" + callout.id, callout);
+    app.skipToEnd();
+    assert.equal(app._activeEditForm, null, "skipToEnd should dismiss");
 });
 
 // ---------------------------------------------------------------------------

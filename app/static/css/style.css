@@ -126,6 +126,7 @@ body {
     border-left: 3px solid transparent;
     cursor: pointer;
     transition: background-color 0.15s, border-left-color 0.15s;
+    position: relative;
 }
 
 .section-sidebar__item:hover {
@@ -145,6 +146,31 @@ body {
 .section-sidebar__range {
     font-size: 0.75rem;
     color: var(--color-text-muted);
+}
+
+.section-sidebar__delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.section-sidebar__delete:hover {
+    color: #E74C3C;
+    border-color: #E74C3C;
 }
 
 /* -----------------------------------------------------------------------

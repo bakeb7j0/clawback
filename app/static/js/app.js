@@ -31,6 +31,7 @@ function clawbackApp() {
         _sectionForm: null,
         _pendingSection: null,
         _inlineEditor: null,
+        _activeEditForm: null,
         _engine: null,
         _scroller: null,
         _conversationBeatsRendered: 0,
@@ -47,7 +48,9 @@ function clawbackApp() {
 
             // Escape is always handled, even inside form inputs
             if (event.code === "Escape") {
-                if (this._sectionForm) {
+                if (this._activeEditForm) {
+                    this._dismissEditForm();
+                } else if (this._sectionForm) {
                     this.cancelSectionForm();
                 } else if (this._pendingSection) {
                     this.cancelPendingSection();
@@ -187,6 +190,7 @@ function clawbackApp() {
             this._sectionForm = null;
             this._pendingSection = null;
             this._dismissInlineEditor();
+            this._dismissEditForm();
             var panelContent = this.$refs.artifactPanelContent;
             if (panelContent) {
                 panelContent.innerHTML = "";
@@ -305,6 +309,7 @@ function clawbackApp() {
 
         /** Reset to the beginning. */
         skipToStart() {
+            this._dismissEditForm();
             if (this._engine) {
                 this._engine.skipToStart();
             }
@@ -312,6 +317,7 @@ function clawbackApp() {
 
         /** Jump to the end. */
         skipToEnd() {
+            this._dismissEditForm();
             if (this._engine) {
                 this._engine.skipToEnd();
             }
@@ -319,6 +325,7 @@ function clawbackApp() {
 
         /** Step forward one beat. */
         nextBeat() {
+            this._dismissEditForm();
             if (this._engine) {
                 this._engine.next();
             }
@@ -326,6 +333,7 @@ function clawbackApp() {
 
         /** Step backward one beat. */
         previousBeat() {
+            this._dismissEditForm();
             if (this._engine) {
                 this._engine.previous();
             }
@@ -410,13 +418,14 @@ function clawbackApp() {
                 return;
             }
 
-            // Clicks inside the inline editor are handled by the editor itself
+            // Clicks inside the inline editor or edit form are handled by the form itself
             if (event.target.closest(".inline-editor")) return;
 
             var target = event.target.closest(".bubble, .callout, .artifact-card");
             if (!target) {
                 this.dismissContextMenu();
                 this._dismissInlineEditor();
+                this._dismissEditForm();
                 return;
             }
 
@@ -489,6 +498,10 @@ function clawbackApp() {
                 this._openCalloutEditor(parseInt(beatId, 10), "warning");
             } else if (action === "attach-artifact") {
                 this._openArtifactEditor(parseInt(beatId, 10));
+            } else if (action === "delete-annotation" && isAnnotation) {
+                this._deleteAnnotation(String(beatId));
+            } else if (action === "edit-annotation" && isAnnotation) {
+                this._editAnnotation(String(beatId));
             }
         },
 
@@ -568,6 +581,435 @@ function clawbackApp() {
                 });
             }
             this._pendingSection = null;
+        },
+
+        // ---------------------------------------------------------------
+        // Annotation editing and deletion
+        // ---------------------------------------------------------------
+
+        /**
+         * Extract the annotation ID from a DOM beat ID.
+         * DOM beat IDs follow the pattern "callout-cal-N" or "artifact-art-N".
+         *
+         * @param {string} domBeatId - The data-beat-id from the DOM element
+         * @returns {{ annotationId: string, type: string }|null}
+         */
+        _parseAnnotationId(domBeatId) {
+            if (!domBeatId) return null;
+            var str = String(domBeatId);
+            if (str.indexOf("callout-") === 0) {
+                return { annotationId: str.slice(8), type: "callout" };
+            }
+            if (str.indexOf("artifact-") === 0) {
+                return { annotationId: str.slice(9), type: "artifact" };
+            }
+            return null;
+        },
+
+        /**
+         * Find an annotation by ID across all annotation types.
+         *
+         * @param {string} annotationId - The annotation ID (e.g., "cal-1", "art-2")
+         * @returns {Object|null} The annotation object, or null
+         */
+        _findAnnotation(annotationId) {
+            if (typeof ClawbackAnnotations === "undefined") return null;
+            var lists = [
+                ClawbackAnnotations.getCallouts(),
+                ClawbackAnnotations.getArtifacts(),
+                ClawbackAnnotations.getSections(),
+            ];
+            for (var i = 0; i < lists.length; i++) {
+                for (var j = 0; j < lists[i].length; j++) {
+                    if (lists[i][j].id === annotationId) {
+                        return lists[i][j];
+                    }
+                }
+            }
+            return null;
+        },
+
+        /**
+         * Delete an annotation by its DOM beat ID.
+         * Removes from data, removes the DOM element, and auto-saves.
+         *
+         * @param {string} domBeatId - The data-beat-id from the DOM element
+         */
+        _deleteAnnotation(domBeatId) {
+            var parsed = this._parseAnnotationId(domBeatId);
+            if (!parsed || typeof ClawbackAnnotations === "undefined") return;
+
+            var deleted = ClawbackAnnotations.deleteAnnotation(parsed.annotationId);
+            if (!deleted) return;
+
+            // Remove the DOM element
+            var chatArea = this.$refs.chatArea;
+            if (chatArea) {
+                var el = chatArea.querySelector('[data-beat-id="' + domBeatId + '"]');
+                if (el) el.remove();
+            }
+
+            this._refreshAnnotationUI();
+            this._showEditToast("Annotation deleted");
+
+            var self = this;
+            ClawbackAnnotations.save().catch(function () {
+                self._showEditToast("Save failed — deletion may not persist");
+            });
+        },
+
+        /**
+         * Edit an annotation by its DOM beat ID.
+         * Opens a pre-populated editor for the annotation type.
+         *
+         * @param {string} domBeatId - The data-beat-id from the DOM element
+         */
+        _editAnnotation(domBeatId) {
+            var parsed = this._parseAnnotationId(domBeatId);
+            if (!parsed) return;
+
+            var annotation = this._findAnnotation(parsed.annotationId);
+            if (!annotation) return;
+
+            if (parsed.type === "callout") {
+                this._openCalloutEditForm(domBeatId, annotation);
+            } else if (parsed.type === "artifact") {
+                this._openArtifactEditForm(domBeatId, annotation);
+            }
+        },
+
+        /**
+         * Open a pre-populated callout edit form replacing the callout card.
+         *
+         * @param {string} domBeatId - The DOM beat ID
+         * @param {Object} annotation - The callout annotation data
+         */
+        _openCalloutEditForm(domBeatId, annotation) {
+            this._dismissEditForm();
+            var chatArea = this.$refs.chatArea;
+            if (!chatArea) return;
+            var cardEl = chatArea.querySelector('[data-beat-id="' + domBeatId + '"]');
+            if (!cardEl) return;
+
+            var form = document.createElement("div");
+            form.className = "inline-editor inline-editor--" + (annotation.style || "note");
+
+            var header = document.createElement("div");
+            header.className = "inline-editor__header";
+            header.textContent = "\u270F\uFE0F Edit " + (annotation.style === "warning" ? "Warning" : "Note");
+            form.appendChild(header);
+
+            var textarea = document.createElement("textarea");
+            textarea.className = "inline-editor__textarea";
+            textarea.rows = 3;
+            textarea.value = annotation.content || "";
+            form.appendChild(textarea);
+
+            var errorMsg = document.createElement("div");
+            errorMsg.className = "inline-editor__error";
+            form.appendChild(errorMsg);
+
+            var footer = document.createElement("div");
+            footer.className = "inline-editor__footer";
+
+            var cancelBtn = document.createElement("button");
+            cancelBtn.className = "inline-editor__cancel";
+            cancelBtn.textContent = "Cancel";
+            footer.appendChild(cancelBtn);
+
+            var saveBtn = document.createElement("button");
+            saveBtn.className = "inline-editor__save";
+            saveBtn.textContent = "Save";
+            footer.appendChild(saveBtn);
+
+            form.appendChild(footer);
+
+            // Hide the original card and insert editor after it
+            cardEl.style.display = "none";
+            cardEl.insertAdjacentElement("afterend", form);
+            textarea.focus();
+
+            var self = this;
+            this._activeEditForm = {
+                type: "callout",
+                annotationId: annotation.id,
+                domBeatId: domBeatId,
+                element: form,
+                cardEl: cardEl,
+                textarea: textarea,
+                errorMsg: errorMsg,
+            };
+
+            cancelBtn.addEventListener("click", function () {
+                self._dismissEditForm();
+            });
+            saveBtn.addEventListener("click", function () {
+                self._saveCalloutEdit();
+            });
+            textarea.addEventListener("keydown", function (e) {
+                if (e.code === "Escape") {
+                    e.stopPropagation();
+                    self._dismissEditForm();
+                }
+            });
+        },
+
+        /** Save edits to a callout annotation. */
+        _saveCalloutEdit() {
+            if (!this._activeEditForm || this._activeEditForm.type !== "callout") return;
+            var content = this._activeEditForm.textarea.value.trim();
+            if (!content) {
+                this._activeEditForm.errorMsg.textContent = "Content cannot be empty";
+                return;
+            }
+
+            if (typeof ClawbackAnnotations === "undefined") return;
+
+            ClawbackAnnotations.updateAnnotation(this._activeEditForm.annotationId, { content: content });
+
+            // Re-render the callout card
+            this._reRenderAnnotation(this._activeEditForm.domBeatId, this._activeEditForm.annotationId);
+
+            var self = this;
+            ClawbackAnnotations.save().catch(function () {
+                self._showEditToast("Save failed — edit may not persist");
+            });
+            this._dismissEditForm();
+        },
+
+        /**
+         * Open a pre-populated artifact edit form replacing the artifact card.
+         *
+         * @param {string} domBeatId - The DOM beat ID
+         * @param {Object} annotation - The artifact annotation data
+         */
+        _openArtifactEditForm(domBeatId, annotation) {
+            this._dismissEditForm();
+            var chatArea = this.$refs.chatArea;
+            if (!chatArea) return;
+            var cardEl = chatArea.querySelector('[data-beat-id="' + domBeatId + '"]');
+            if (!cardEl) return;
+
+            var form = document.createElement("div");
+            form.className = "inline-editor inline-editor--artifact";
+
+            var header = document.createElement("div");
+            header.className = "inline-editor__header";
+            header.textContent = "\u270F\uFE0F Edit Artifact";
+            form.appendChild(header);
+
+            var titleInput = document.createElement("input");
+            titleInput.className = "inline-editor__input";
+            titleInput.type = "text";
+            titleInput.placeholder = "Artifact title";
+            titleInput.value = annotation.title || "";
+            form.appendChild(titleInput);
+
+            var descInput = document.createElement("input");
+            descInput.className = "inline-editor__input";
+            descInput.type = "text";
+            descInput.placeholder = "Brief description (optional)";
+            descInput.value = annotation.description || "";
+            form.appendChild(descInput);
+
+            var typeSelect = document.createElement("select");
+            typeSelect.className = "inline-editor__select";
+            var mdOpt = document.createElement("option");
+            mdOpt.value = "markdown";
+            mdOpt.textContent = "Markdown";
+            typeSelect.appendChild(mdOpt);
+            var codeOpt = document.createElement("option");
+            codeOpt.value = "code";
+            codeOpt.textContent = "Code";
+            typeSelect.appendChild(codeOpt);
+            typeSelect.value = annotation.content_type || "markdown";
+            form.appendChild(typeSelect);
+
+            var textarea = document.createElement("textarea");
+            textarea.className = "inline-editor__textarea";
+            textarea.rows = 6;
+            textarea.value = annotation.content || "";
+            form.appendChild(textarea);
+
+            var errorMsg = document.createElement("div");
+            errorMsg.className = "inline-editor__error";
+            form.appendChild(errorMsg);
+
+            var footer = document.createElement("div");
+            footer.className = "inline-editor__footer";
+
+            var cancelBtn = document.createElement("button");
+            cancelBtn.className = "inline-editor__cancel";
+            cancelBtn.textContent = "Cancel";
+            footer.appendChild(cancelBtn);
+
+            var saveBtn = document.createElement("button");
+            saveBtn.className = "inline-editor__save";
+            saveBtn.textContent = "Save";
+            footer.appendChild(saveBtn);
+
+            form.appendChild(footer);
+
+            cardEl.style.display = "none";
+            cardEl.insertAdjacentElement("afterend", form);
+            titleInput.focus();
+
+            var self = this;
+            this._activeEditForm = {
+                type: "artifact",
+                annotationId: annotation.id,
+                domBeatId: domBeatId,
+                element: form,
+                cardEl: cardEl,
+                titleInput: titleInput,
+                descInput: descInput,
+                typeSelect: typeSelect,
+                textarea: textarea,
+                errorMsg: errorMsg,
+            };
+
+            cancelBtn.addEventListener("click", function () {
+                self._dismissEditForm();
+            });
+            saveBtn.addEventListener("click", function () {
+                self._saveArtifactEdit();
+            });
+            var dismissEsc = function (e) {
+                if (e.code === "Escape") {
+                    e.stopPropagation();
+                    self._dismissEditForm();
+                }
+            };
+            textarea.addEventListener("keydown", dismissEsc);
+            titleInput.addEventListener("keydown", dismissEsc);
+            descInput.addEventListener("keydown", dismissEsc);
+            typeSelect.addEventListener("keydown", dismissEsc);
+        },
+
+        /** Save edits to an artifact annotation. */
+        _saveArtifactEdit() {
+            if (!this._activeEditForm || this._activeEditForm.type !== "artifact") return;
+            var title = this._activeEditForm.titleInput.value.trim();
+            var content = this._activeEditForm.textarea.value.trim();
+
+            if (!title) {
+                this._activeEditForm.errorMsg.textContent = "Title cannot be empty";
+                return;
+            }
+            if (!content) {
+                this._activeEditForm.errorMsg.textContent = "Content cannot be empty";
+                return;
+            }
+
+            if (typeof ClawbackAnnotations === "undefined") return;
+
+            var description = this._activeEditForm.descInput.value.trim();
+            var contentType = this._activeEditForm.typeSelect.value;
+
+            ClawbackAnnotations.updateAnnotation(this._activeEditForm.annotationId, {
+                title: title,
+                description: description,
+                content_type: contentType,
+                content: content,
+            });
+
+            this._reRenderAnnotation(this._activeEditForm.domBeatId, this._activeEditForm.annotationId);
+
+            var self = this;
+            ClawbackAnnotations.save().catch(function () {
+                self._showEditToast("Save failed — edit may not persist");
+            });
+            this._dismissEditForm();
+        },
+
+        /**
+         * Re-render an annotation element in the DOM after editing.
+         * Removes old element, builds a new pseudo-beat, renders and inserts it.
+         *
+         * @param {string} domBeatId - The DOM beat ID
+         * @param {string} annotationId - The annotation ID
+         */
+        _reRenderAnnotation(domBeatId, annotationId) {
+            var chatArea = this.$refs.chatArea;
+            if (!chatArea || typeof ClawbackRenderer === "undefined" ||
+                typeof ClawbackAnnotations === "undefined") return;
+
+            var annotation = this._findAnnotation(annotationId);
+            if (!annotation) return;
+
+            var parsed = this._parseAnnotationId(domBeatId);
+            if (!parsed) return;
+
+            var pseudoBeat;
+            if (parsed.type === "callout") {
+                pseudoBeat = {
+                    type: "callout",
+                    category: "callout",
+                    isCallout: true,
+                    calloutStyle: annotation.style || "note",
+                    content: annotation.content || "",
+                    calloutId: annotation.id,
+                    id: domBeatId,
+                    group_id: null,
+                };
+            } else if (parsed.type === "artifact") {
+                pseudoBeat = {
+                    type: "artifact",
+                    category: "artifact",
+                    isArtifact: true,
+                    artifactTitle: annotation.title || "Artifact",
+                    artifactDescription: annotation.description || "",
+                    artifactContent: annotation.content || "",
+                    contentType: annotation.content_type || "markdown",
+                    content: (annotation.title || "") + " " + (annotation.description || ""),
+                    artifactId: annotation.id,
+                    id: domBeatId,
+                    group_id: null,
+                };
+            }
+
+            if (!pseudoBeat) return;
+
+            // Find old element, render new one, swap
+            var oldEl = chatArea.querySelector('[data-beat-id="' + domBeatId + '"]');
+            var newEl = ClawbackRenderer.renderBeat(pseudoBeat, chatArea);
+            if (newEl) {
+                if (newEl.parentNode) newEl.parentNode.removeChild(newEl);
+                if (oldEl) {
+                    oldEl.insertAdjacentElement("afterend", newEl);
+                    oldEl.remove();
+                }
+            }
+        },
+
+        /** Dismiss and remove the active edit form, restoring the original card. */
+        _dismissEditForm() {
+            if (this._activeEditForm) {
+                if (this._activeEditForm.element) {
+                    this._activeEditForm.element.remove();
+                }
+                if (this._activeEditForm.cardEl) {
+                    this._activeEditForm.cardEl.style.display = "";
+                }
+            }
+            this._activeEditForm = null;
+        },
+
+        /**
+         * Delete a section by ID (called from sidebar).
+         *
+         * @param {string} sectionId - The section annotation ID
+         */
+        deleteSection(sectionId) {
+            if (typeof ClawbackAnnotations === "undefined") return;
+            ClawbackAnnotations.deleteAnnotation(sectionId);
+            this._refreshAnnotationUI();
+            this._showEditToast("Section deleted");
+
+            var self = this;
+            ClawbackAnnotations.save().catch(function () {
+                self._showEditToast("Save failed — deletion may not persist");
+            });
         },
 
         /** Refresh sidebar, progress bar, and active section from annotation data. */
