@@ -28,6 +28,8 @@ function clawbackApp() {
         _contextMenu: null,
         editToast: "",
         _editToastTimeout: null,
+        _sectionForm: null,
+        _pendingSection: null,
         _engine: null,
         _scroller: null,
         _conversationBeatsRendered: 0,
@@ -42,18 +44,25 @@ function clawbackApp() {
         handleKeydown(event) {
             if (this.view !== "playback") return;
 
+            // Escape is always handled, even inside form inputs
+            if (event.code === "Escape") {
+                if (this._sectionForm) {
+                    this.cancelSectionForm();
+                } else if (this._pendingSection) {
+                    this.cancelPendingSection();
+                } else if (this._contextMenu) {
+                    this.dismissContextMenu();
+                } else if (this.artifactOpen) {
+                    this.closeArtifact();
+                }
+                return;
+            }
+
             var tag = event.target.tagName;
             if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
             if (event.target.isContentEditable) return;
 
             switch (event.code) {
-                case "Escape":
-                    if (this._contextMenu) {
-                        this.dismissContextMenu();
-                    } else if (this.artifactOpen) {
-                        this.closeArtifact();
-                    }
-                    break;
                 case "Space":
                     event.preventDefault();
                     this.togglePlay();
@@ -172,6 +181,8 @@ function clawbackApp() {
             this.editMode = false;
             this._contextMenu = null;
             this.editToast = "";
+            this._sectionForm = null;
+            this._pendingSection = null;
             var panelContent = this.$refs.artifactPanelContent;
             if (panelContent) {
                 panelContent.innerHTML = "";
@@ -380,6 +391,21 @@ function clawbackApp() {
         handleChatAreaClick(event) {
             if (!this.editMode) return;
 
+            // Handle pending section: second beat click completes section.
+            // Only .bubble elements are valid targets — callout/artifact pseudo-beats
+            // have non-numeric IDs (e.g. "callout-3") that cannot be used as section boundaries.
+            if (this._pendingSection) {
+                if (this.playbackState === "PLAYING") {
+                    this._showEditToast("Pause playback to edit");
+                    return;
+                }
+                var endTarget = event.target.closest(".bubble");
+                if (endTarget) {
+                    this._completeSectionCreation(parseInt(endTarget.dataset.beatId, 10));
+                }
+                return;
+            }
+
             var target = event.target.closest(".bubble, .callout, .artifact-card");
             if (!target) {
                 this.dismissContextMenu();
@@ -444,7 +470,11 @@ function clawbackApp() {
             var beatId = this._contextMenu ? this._contextMenu.beatId : null;
             var isAnnotation = this._contextMenu ? this._contextMenu.isAnnotation : false;
             this.dismissContextMenu();
-            // Annotation creation/editing dispatched in later issues (#50-#52)
+
+            if (action === "start-section" && beatId !== null) {
+                this._startSectionCreation(parseInt(beatId, 10));
+            }
+            // Other actions dispatched in later issues (#51-#52)
         },
 
         /** Show a temporary edit-mode toast message. */
@@ -458,6 +488,81 @@ function clawbackApp() {
                 self.editToast = "";
                 self._editToastTimeout = null;
             }, 2000);
+        },
+
+        /** Returns the annotation color palette for template rendering. */
+        getColorPalette() {
+            if (typeof ANNOTATION_COLORS !== "undefined") {
+                return Object.keys(ANNOTATION_COLORS).map(function (key) {
+                    return { key: key, hex: ANNOTATION_COLORS[key] };
+                });
+            }
+            return [];
+        },
+
+        /** Open the section creation form for a given beat. */
+        _startSectionCreation(beatId) {
+            this._sectionForm = {
+                beatId: beatId,
+                label: "",
+                color: "blue",
+            };
+        },
+
+        /** Submit the section form and enter "select end beat" mode. */
+        submitSectionForm() {
+            if (!this._sectionForm || !this._sectionForm.label.trim()) return;
+            this._pendingSection = {
+                startBeat: this._sectionForm.beatId,
+                label: this._sectionForm.label.trim(),
+                color: this._sectionForm.color,
+            };
+            this._sectionForm = null;
+        },
+
+        /** Cancel the section creation form. */
+        cancelSectionForm() {
+            this._sectionForm = null;
+        },
+
+        /** Cancel the pending section (select end beat mode). */
+        cancelPendingSection() {
+            this._pendingSection = null;
+        },
+
+        /**
+         * Complete section creation with the second beat click.
+         * ClawbackAnnotations.createSection handles auto-swap if end < start.
+         *
+         * @param {number} endBeatId - The beat ID for the section end
+         */
+        _completeSectionCreation(endBeatId) {
+            if (!this._pendingSection) return;
+            var startBeat = this._pendingSection.startBeat;
+            var label = this._pendingSection.label;
+            var color = this._pendingSection.color;
+
+            if (typeof ClawbackAnnotations !== "undefined") {
+                ClawbackAnnotations.createSection(startBeat, endBeatId, label, color);
+                this._refreshAnnotationUI();
+
+                // Auto-save — toast on failure so user knows the edit may not persist
+                var self = this;
+                ClawbackAnnotations.save().catch(function () {
+                    self._showEditToast("Save failed — section may not persist");
+                });
+            }
+            this._pendingSection = null;
+        },
+
+        /** Refresh sidebar, progress bar, and active section from annotation data. */
+        _refreshAnnotationUI() {
+            if (typeof ClawbackAnnotations !== "undefined") {
+                this.sectionList = ClawbackAnnotations.getSections();
+                this.showSections = ClawbackAnnotations.hasSections();
+                this.progressSegments = this._computeProgressSegments();
+                this._updateActiveSection();
+            }
         },
 
         /** Jump playback to the start of a section. */

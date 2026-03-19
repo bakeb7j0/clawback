@@ -206,6 +206,54 @@
         <div class="artifact-panel__content" x-ref="artifactPanelContent"></div>
     </div>
 
+    <!-- Section creation form -->
+    <template x-if="_sectionForm">
+        <div class="section-form-backdrop" @click="cancelSectionForm()">
+            <div class="section-form" @click.stop
+                 x-init="$nextTick(() => $refs.sectionLabelInput && $refs.sectionLabelInput.focus())">
+                <div class="section-form__header">
+                    <span class="section-form__title">New Section</span>
+                    <button class="section-form__close" @click="cancelSectionForm()" title="Cancel">&times;</button>
+                </div>
+                <div class="section-form__body">
+                    <label class="section-form__label">
+                        Label
+                        <input class="section-form__input"
+                               type="text"
+                               x-model="_sectionForm.label"
+                               @keydown.enter="submitSectionForm()"
+                               placeholder="Section name"
+                               x-ref="sectionLabelInput">
+                    </label>
+                    <div class="section-form__palette">
+                        <template x-for="color in getColorPalette()" :key="color.key">
+                            <button class="section-form__swatch"
+                                    :class="{ 'section-form__swatch--active': _sectionForm.color === color.key }"
+                                    :style="'background-color:' + color.hex"
+                                    @click="_sectionForm.color = color.key"
+                                    :title="color.key"></button>
+                        </template>
+                    </div>
+                </div>
+                <div class="section-form__footer">
+                    <button class="section-form__cancel" @click="cancelSectionForm()">Cancel</button>
+                    <button class="section-form__submit"
+                            @click="submitSectionForm()"
+                            :disabled="!_sectionForm.label.trim()">Next &#8594;</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Pending section indicator -->
+    <div class="pending-section-banner"
+         x-show="_pendingSection"
+         x-transition
+         x-cloak>
+        <span x-text="_pendingSection ? 'Click a beat to end section \u201C' + _pendingSection.label + '\u201D' : ''"></span>
+        <button class="pending-section-banner__cancel" @click="cancelPendingSection()">Cancel</button>
+    </div>
+
     <!-- Context menu for annotation editing -->
     <div class="context-menu"
          x-show="_contextMenu"
