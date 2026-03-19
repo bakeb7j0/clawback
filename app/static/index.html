@@ -49,6 +49,10 @@
                         <span class="section-sidebar__label" x-text="section.label"></span>
                         <span class="section-sidebar__range"
                               x-text="'Beats ' + (section.start_beat + 1) + '\u2013' + (section.end_beat + 1)"></span>
+                        <button class="section-sidebar__delete"
+                                x-show="editMode"
+                                @click.stop="deleteSection(section.id)"
+                                title="Delete section">&times;</button>
                     </div>
                 </template>
             </div>
