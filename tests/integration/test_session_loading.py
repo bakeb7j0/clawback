@@ -13,7 +13,7 @@ def test_picker_shows_curated_sessions(loaded_page):
     """Session picker displays curated session cards from the manifest."""
     page = loaded_page
     cards = page.locator(".picker__card")
-    expect(cards).to_have_count(2)
+    expect(cards).to_have_count(3)
     expect(cards.first.locator(".picker__card-title")).to_have_text("Demo: File Review")
     expect(cards.nth(1).locator(".picker__card-title")).to_have_text(
         "Debugging: API 500 Errors"

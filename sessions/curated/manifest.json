@@ -14,5 +14,13 @@
         "file": "debugging-session.jsonl",
         "beat_count": 16,
         "tags": ["debugging", "bug-fix", "api"]
+    },
+    {
+        "id": "creating-clawback",
+        "title": "Creating Clawback",
+        "description": "A complete context engineering session — from PRD to production. Watch the full build of this very application: 13 issues, 4 phases, live testing, bug fixes, and deployment.",
+        "file": "creating-clawback.jsonl",
+        "beat_count": 2226,
+        "tags": ["context-engineering", "full-build", "flask", "javascript", "docker", "testing"]
     }
 ]
