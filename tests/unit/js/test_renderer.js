@@ -101,6 +101,7 @@ const {
     removeBeat,
     toggleAllInnerWorkings,
     resetGroups,
+    renderArtifactPanel,
 } = require("../../../app/static/js/renderer.js");
 
 let passed = 0;
@@ -1164,6 +1165,118 @@ test("callouts interleave with conversation bubbles", () => {
     assert.ok(container.children[0].classList.contains("bubble--user"));
     assert.ok(container.children[1].classList.contains("callout--note"));
     assert.ok(container.children[2].classList.contains("bubble--assistant"));
+});
+
+// ---------------------------------------------------------------------------
+// renderBeat — artifact cards
+// ---------------------------------------------------------------------------
+console.log("\nrenderBeat — artifact cards");
+
+function makeArtifactBeat(id, opts = {}) {
+    var title = opts.title !== undefined ? opts.title : "My Artifact";
+    var desc = opts.description !== undefined ? opts.description : "A description";
+    return {
+        id: "artifact-art-" + id,
+        type: "artifact",
+        category: "artifact",
+        isArtifact: true,
+        artifactTitle: title,
+        artifactDescription: desc,
+        artifactContent: opts.artifactContent || "# Content",
+        contentType: opts.contentType || "markdown",
+        content: title + " " + desc,
+        artifactId: "art-" + id,
+        duration: 1,
+        group_id: null,
+    };
+}
+
+test("renders an artifact card with correct CSS class", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeArtifactBeat(1), container);
+    assert.ok(card, "should return the artifact card element");
+    assert.ok(card.classList.contains("artifact-card"));
+    assert.equal(container.children.length, 1);
+});
+
+test("artifact card has icon, title, description, and click prompt", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeArtifactBeat(1, {
+        title: "Schema Design",
+        description: "Database schema for users table",
+    }), container);
+    const icon = card.children.find((c) => c.classList.contains("artifact-card__icon"));
+    assert.equal(icon.textContent, "\uD83D\uDCC4");
+    const body = card.children.find((c) => c.classList.contains("artifact-card__body"));
+    const title = body.children.find((c) => c.classList.contains("artifact-card__title"));
+    assert.equal(title.textContent, "Schema Design");
+    const desc = body.children.find((c) => c.classList.contains("artifact-card__desc"));
+    assert.equal(desc.textContent, "Database schema for users table");
+    const prompt = card.children.find((c) => c.classList.contains("artifact-card__prompt"));
+    assert.ok(prompt.textContent.includes("Click to view"));
+});
+
+test("artifact card omits description element when empty", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeArtifactBeat(1, {
+        title: "Test",
+        description: "",
+    }), container);
+    const body = card.children.find((c) => c.classList.contains("artifact-card__body"));
+    const desc = body.children.find((c) => c.classList.contains("artifact-card__desc"));
+    assert.equal(desc, undefined, "should not have description element");
+});
+
+test("artifact card sets data-beat-id", () => {
+    const container = makeContainer();
+    const card = renderBeat(makeArtifactBeat(7), container);
+    assert.equal(card.dataset.beatId, "artifact-art-7");
+});
+
+test("artifact card can be removed via removeBeat", () => {
+    const container = makeContainer();
+    renderBeat(makeArtifactBeat(1), container);
+    assert.equal(container.children.length, 1);
+    removeBeat({ id: "artifact-art-1", type: "artifact", category: "artifact" }, container);
+    assert.equal(container.children.length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// renderArtifactPanel
+// ---------------------------------------------------------------------------
+console.log("\nrenderArtifactPanel");
+
+test("renders markdown content in panel", () => {
+    markedCalls = [];
+    const contentEl = createElement("div");
+    renderArtifactPanel({
+        contentType: "markdown",
+        artifactContent: "# Hello World",
+    }, contentEl);
+    assert.ok(markedCalls.includes("# Hello World"), "should call marked.parse");
+    assert.ok(contentEl.innerHTML.includes("# Hello World"));
+});
+
+test("renders code content in panel with syntax highlighting", () => {
+    hljsCalls = [];
+    const contentEl = createElement("div");
+    renderArtifactPanel({
+        contentType: "code",
+        artifactContent: "function foo() {}",
+    }, contentEl);
+    assert.ok(hljsCalls.length > 0, "should call hljs.highlightElement");
+    assert.equal(contentEl.children.length, 1);
+    assert.equal(contentEl.children[0].tagName, "PRE");
+});
+
+test("clears previous content before rendering", () => {
+    const contentEl = createElement("div");
+    contentEl.innerHTML = "<p>old content</p>";
+    renderArtifactPanel({
+        contentType: "markdown",
+        artifactContent: "new",
+    }, contentEl);
+    assert.ok(!contentEl.innerHTML.includes("old content"));
 });
 
 // ---------------------------------------------------------------------------

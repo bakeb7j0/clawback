@@ -172,6 +172,29 @@
         </div>
     </div>
 
+    <!-- Artifact panel overlay -->
+    <div class="artifact-panel__backdrop"
+         x-show="artifactOpen"
+         x-transition.opacity.duration.200ms
+         @click="closeArtifact()"
+         x-cloak></div>
+    <div class="artifact-panel"
+         x-show="artifactOpen"
+         x-transition:enter="artifact-panel--enter"
+         x-transition:enter-start="artifact-panel--hidden"
+         x-transition:enter-end="artifact-panel--visible"
+         x-transition:leave="artifact-panel--enter"
+         x-transition:leave-start="artifact-panel--visible"
+         x-transition:leave-end="artifact-panel--hidden"
+         x-cloak>
+        <div class="artifact-panel__header">
+            <span class="artifact-panel__title"
+                  x-text="_currentArtifact ? _currentArtifact.artifactTitle : ''"></span>
+            <button class="artifact-panel__close" @click="closeArtifact()" title="Close">&times;</button>
+        </div>
+        <div class="artifact-panel__content" x-ref="artifactPanelContent"></div>
+    </div>
+
     <!-- Scroll-pause indicator -->
     <div class="scroll-pause-indicator"
          x-show="playbackState === 'SCROLL_PAUSED'"

@@ -22,15 +22,17 @@ function resetRendererCalls() {
         removeBeat: [],
         toggleAllIW: [],
         resetGroups: 0,
+        renderArtifactPanel: [],
     };
 }
 resetRendererCalls();
 
 global.ClawbackRenderer = {
-    renderBeat: function (beat, container) { rendererCalls.renderBeat.push(beat); },
+    renderBeat: function (beat, container) { rendererCalls.renderBeat.push(beat); return { addEventListener: function () {} }; },
     removeBeat: function (beat, container) { rendererCalls.removeBeat.push(beat); },
     toggleAllInnerWorkings: function (container, expanded) { rendererCalls.toggleAllIW.push(expanded); },
     resetGroups: function () { rendererCalls.resetGroups++; },
+    renderArtifactPanel: function (artifact, contentEl) { rendererCalls.renderArtifactPanel.push(artifact); },
 };
 
 global.ClawbackScroller = {
@@ -791,6 +793,272 @@ test("backToSessions resets callout state", function () {
     app.backToSessions();
     assert.equal(app._conversationBeatsRendered, 0);
     assert.equal(app._beatIdToMergedIndex, null);
+});
+
+// ---------------------------------------------------------------------------
+// Artifact interleaving
+// ---------------------------------------------------------------------------
+console.log("\nartifact interleaving");
+
+function makeArtifactAnnotations() {
+    return {
+        sections: [],
+        callouts: [],
+        artifacts: [
+            { id: "art-1", after_beat: 1, title: "Diagram", description: "Architecture overview", content_type: "markdown", content: "# Architecture\nDetails here." },
+            { id: "art-2", after_beat: 3, title: "Code Sample", description: "Implementation example", content_type: "code", content: "function hello() { return 1; }" },
+        ],
+    };
+}
+
+test("merged beats include artifact pseudo-beats", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeArtifactAnnotations());
+    // 5 conversation beats + 2 artifacts = 7 merged beats
+    assert.equal(app._engine.beats.length, 7);
+});
+
+test("totalBeats tracks conversation beats only (artifacts excluded)", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeArtifactAnnotations());
+    assert.equal(app.totalBeats, 5);
+});
+
+test("currentBeat tracks conversation beats only during artifact playback", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeArtifactAnnotations());
+    // merged: [b0, b1, art1, b2, b3, art2, b4]
+    app._engine.next(); // beat 0 → conversationBeats=1
+    assert.equal(app.currentBeat, 1);
+    app._engine.next(); // beat 1 → conversationBeats=2
+    assert.equal(app.currentBeat, 2);
+    app._engine.next(); // artifact → conversationBeats still 2
+    assert.equal(app.currentBeat, 2);
+    app._engine.next(); // beat 2 → conversationBeats=3
+    assert.equal(app.currentBeat, 3);
+});
+
+test("previous decrements correctly past artifact pseudo-beats", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeArtifactAnnotations());
+    // Advance past beat 0, beat 1, artifact
+    app._engine.next(); // beat 0
+    app._engine.next(); // beat 1
+    app._engine.next(); // artifact
+    assert.equal(app.currentBeat, 2);
+    app._engine.previous(); // removes artifact
+    assert.equal(app.currentBeat, 2, "artifact removal should not change conversation count");
+    app._engine.previous(); // removes beat 1
+    assert.equal(app.currentBeat, 1);
+});
+
+test("skipToEnd counts all conversation beats with artifacts", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeArtifactAnnotations());
+    app._engine.skipToEnd();
+    assert.equal(app.currentBeat, 5);
+    assert.equal(app.totalBeats, 5);
+});
+
+test("artifact pseudo-beats have correct structure", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeArtifactAnnotations());
+    var merged = app._engine.beats;
+    // Artifact should be at index 2 (after beat 0 and beat 1)
+    var artifact = merged[2];
+    assert.equal(artifact.type, "artifact");
+    assert.equal(artifact.category, "artifact");
+    assert.equal(artifact.isArtifact, true);
+    assert.equal(artifact.artifactTitle, "Diagram");
+    assert.equal(artifact.artifactDescription, "Architecture overview");
+    assert.equal(artifact.artifactContent, "# Architecture\nDetails here.");
+    assert.equal(artifact.contentType, "markdown");
+    assert.equal(artifact.content, "Diagram Architecture overview");
+    assert.equal(artifact.artifactId, "art-1");
+    assert.equal(artifact.id, "artifact-art-1");
+    assert.ok(artifact.duration >= 1.0, "duration should be at least 1s");
+    assert.equal(artifact.group_id, null);
+});
+
+test("artifact duration calculated from title+description word count", function () {
+    const app = makeApp();
+    // "Diagram Architecture overview" = 3 words → (3/100)*60 = 1.8s → max(1.0, 1.8) = 1.8
+    var annotations = {
+        sections: [], callouts: [],
+        artifacts: [{ id: "art-1", after_beat: 0, title: "Diagram", description: "Architecture overview", content_type: "markdown", content: "Lots of content here" }],
+    };
+    app.startPlayback(makeBeats(3), "Test", annotations);
+    var artifact = app._engine.beats[1]; // after beat 0
+    assert.equal(artifact.duration, (3 / 100) * 60);
+});
+
+test("beatIdToMergedIndex maps correctly with artifacts", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", makeArtifactAnnotations());
+    // merged: [b0, b1, art1, b2, b3, art2, b4]
+    assert.equal(app._beatIdToMergedIndex[0], 0); // beat 0 at merged index 0
+    assert.equal(app._beatIdToMergedIndex[1], 1); // beat 1 at merged index 1
+    assert.equal(app._beatIdToMergedIndex[2], 3); // beat 2 at merged index 3 (after artifact)
+    assert.equal(app._beatIdToMergedIndex[3], 4); // beat 3 at merged index 4
+    assert.equal(app._beatIdToMergedIndex[4], 6); // beat 4 at merged index 6 (after artifact)
+});
+
+test("jumpToSection uses merged index with artifacts present", function () {
+    const app = makeApp();
+    var annotations = {
+        sections: [
+            { id: "sec-1", start_beat: 3, end_beat: 4, label: "Section", color: "blue" },
+        ],
+        callouts: [],
+        artifacts: [
+            { id: "art-1", after_beat: 1, title: "A", description: "B", content_type: "markdown", content: "C" },
+        ],
+    };
+    app.startPlayback(makeBeats(6), "Test", annotations);
+    // merged: [b0, b1, art1, b2, b3, b4, b5]
+    // beat 3 is at merged index 4
+    app.jumpToSection(annotations.sections[0]);
+    // After jump, conversation beats 0-3 should be rendered = 4
+    assert.equal(app.currentBeat, 4);
+});
+
+// ---------------------------------------------------------------------------
+// Mixed callouts and artifacts
+// ---------------------------------------------------------------------------
+console.log("\nmixed callouts and artifacts");
+
+function makeMixedAnnotations() {
+    return {
+        sections: [],
+        callouts: [
+            { id: "cal-1", after_beat: 1, style: "note", content: "A callout note" },
+        ],
+        artifacts: [
+            { id: "art-1", after_beat: 1, title: "Artifact", description: "After same beat as callout", content_type: "markdown", content: "Content" },
+        ],
+    };
+}
+
+test("callouts and artifacts on same beat both appear in merged array", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(4), "Test", makeMixedAnnotations());
+    // merged: [b0, b1, cal1, art1, b2, b3]
+    assert.equal(app._engine.beats.length, 6);
+    assert.equal(app._engine.beats[2].type, "callout");
+    assert.equal(app._engine.beats[3].type, "artifact");
+});
+
+test("callouts appear before artifacts on same beat (annotation order)", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(4), "Test", makeMixedAnnotations());
+    var merged = app._engine.beats;
+    // After beat 1: callout first, then artifact
+    assert.equal(merged[2].isCallout, true);
+    assert.equal(merged[3].isArtifact, true);
+});
+
+test("neither callouts nor artifacts affect conversation beat count", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(4), "Test", makeMixedAnnotations());
+    // Advance: b0, b1, cal1, art1, b2
+    app._engine.next(); // b0 → 1
+    app._engine.next(); // b1 → 2
+    app._engine.next(); // cal1 → 2
+    app._engine.next(); // art1 → 2
+    app._engine.next(); // b2 → 3
+    assert.equal(app.currentBeat, 3);
+    assert.equal(app.totalBeats, 4);
+});
+
+// ---------------------------------------------------------------------------
+// Artifact panel state
+// ---------------------------------------------------------------------------
+console.log("\nartifact panel state");
+
+test("openArtifact sets artifactOpen and _currentArtifact", function () {
+    const app = makeApp(5);
+    var beat = { type: "artifact", artifactTitle: "Test", artifactContent: "Content" };
+    app.$refs.artifactPanelContent = {};
+    app.openArtifact(beat);
+    assert.equal(app.artifactOpen, true);
+    assert.equal(app._currentArtifact, beat);
+});
+
+test("openArtifact pauses playback if playing", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = {};
+    app._engine.play();
+    assert.equal(app.playbackState, "PLAYING");
+    app.openArtifact({ type: "artifact", artifactTitle: "X", artifactContent: "Y" });
+    assert.equal(app.playbackState, "PAUSED");
+    assert.equal(app.artifactOpen, true);
+});
+
+test("openArtifact does not change state if already paused", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = {};
+    assert.equal(app.playbackState, "READY");
+    app.openArtifact({ type: "artifact", artifactTitle: "X", artifactContent: "Y" });
+    assert.equal(app.playbackState, "READY");
+    assert.equal(app.artifactOpen, true);
+});
+
+test("closeArtifact resets artifactOpen and _currentArtifact", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = { innerHTML: "" };
+    app.openArtifact({ type: "artifact", artifactTitle: "X", artifactContent: "Y" });
+    assert.equal(app.artifactOpen, true);
+    app.closeArtifact();
+    assert.equal(app.artifactOpen, false);
+    assert.equal(app._currentArtifact, null);
+});
+
+test("closeArtifact does not resume playback", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = { innerHTML: "" };
+    app._engine.play();
+    assert.equal(app.playbackState, "PLAYING");
+    app.openArtifact({ type: "artifact", artifactTitle: "X", artifactContent: "Y" });
+    assert.equal(app.playbackState, "PAUSED");
+    app.closeArtifact();
+    assert.equal(app.playbackState, "PAUSED", "closing artifact should NOT resume playback");
+});
+
+test("Escape key closes artifact panel", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = { innerHTML: "" };
+    app.openArtifact({ type: "artifact", artifactTitle: "X", artifactContent: "Y" });
+    assert.equal(app.artifactOpen, true);
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app.artifactOpen, false);
+});
+
+test("Escape key is no-op when artifact panel is closed", function () {
+    const app = makeApp(5);
+    assert.equal(app.artifactOpen, false);
+    // Should not throw
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app.artifactOpen, false);
+});
+
+test("backToSessions resets artifact state and clears panel content", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = { innerHTML: "stale content" };
+    app.openArtifact({ type: "artifact", artifactTitle: "X", artifactContent: "Y" });
+    app.backToSessions();
+    assert.equal(app.artifactOpen, false);
+    assert.equal(app._currentArtifact, null);
+    assert.equal(app.$refs.artifactPanelContent.innerHTML, "");
+});
+
+test("openArtifact calls renderArtifactPanel on renderer", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = {};
+    resetRendererCalls();
+    var beat = { type: "artifact", artifactTitle: "T", artifactContent: "C" };
+    app.openArtifact(beat);
+    assert.equal(rendererCalls.renderArtifactPanel.length, 1);
+    assert.equal(rendererCalls.renderArtifactPanel[0], beat);
 });
 
 // ---------------------------------------------------------------------------

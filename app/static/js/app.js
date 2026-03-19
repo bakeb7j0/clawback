@@ -22,6 +22,8 @@ function clawbackApp() {
         activeSection: null,
         sectionList: [],
         progressSegments: [{ width: 100, color: null }],
+        artifactOpen: false,
+        _currentArtifact: null,
         _engine: null,
         _scroller: null,
         _conversationBeatsRendered: 0,
@@ -41,6 +43,11 @@ function clawbackApp() {
             if (event.target.isContentEditable) return;
 
             switch (event.code) {
+                case "Escape":
+                    if (this.artifactOpen) {
+                        this.closeArtifact();
+                    }
+                    break;
                 case "Space":
                     event.preventDefault();
                     this.togglePlay();
@@ -154,6 +161,12 @@ function clawbackApp() {
             this.progressSegments = [{ width: 100, color: null }];
             this._conversationBeatsRendered = 0;
             this._beatIdToMergedIndex = null;
+            this.artifactOpen = false;
+            this._currentArtifact = null;
+            var panelContent = this.$refs.artifactPanelContent;
+            if (panelContent) {
+                panelContent.innerHTML = "";
+            }
         },
 
         /**
@@ -210,8 +223,13 @@ function clawbackApp() {
             this._engine = new PlaybackEngine({
                 beats: merged,
                 onBeat: function (beat) {
-                    ClawbackRenderer.renderBeat(beat, chatArea);
-                    if (!beat.isCallout) {
+                    var el = ClawbackRenderer.renderBeat(beat, chatArea);
+                    if (beat.type === "artifact" && el) {
+                        el.addEventListener("click", function () {
+                            self.openArtifact(beat);
+                        });
+                    }
+                    if (!beat.isCallout && !beat.isArtifact) {
                         self._conversationBeatsRendered++;
                     }
                     self.currentBeat = self._conversationBeatsRendered;
@@ -222,7 +240,7 @@ function clawbackApp() {
                 },
                 onRemoveBeat: function (beat) {
                     ClawbackRenderer.removeBeat(beat, chatArea);
-                    if (!beat.isCallout) {
+                    if (!beat.isCallout && !beat.isArtifact) {
                         self._conversationBeatsRendered--;
                     }
                     self.currentBeat = self._conversationBeatsRendered;
@@ -314,6 +332,29 @@ function clawbackApp() {
             this.showSections = !this.showSections;
         },
 
+        /** Open the artifact panel and pause playback. */
+        openArtifact(beat) {
+            if (this._engine && this.playbackState === "PLAYING") {
+                this._engine.pause();
+            }
+            this._currentArtifact = beat;
+            this.artifactOpen = true;
+            var panelContent = this.$refs.artifactPanelContent;
+            if (panelContent && typeof ClawbackRenderer !== "undefined") {
+                ClawbackRenderer.renderArtifactPanel(beat, panelContent);
+            }
+        },
+
+        /** Close the artifact panel (does NOT resume playback). */
+        closeArtifact() {
+            this.artifactOpen = false;
+            this._currentArtifact = null;
+            var panelContent = this.$refs.artifactPanelContent;
+            if (panelContent) {
+                panelContent.innerHTML = "";
+            }
+        },
+
         /** Jump playback to the start of a section. */
         jumpToSection(section) {
             if (!this._engine) return;
@@ -385,6 +426,24 @@ function clawbackApp() {
                             calloutId: callout.id,
                             id: "callout-" + callout.id,
                             duration: this._calculateCalloutDuration(callout.content),
+                            group_id: null,
+                        });
+                    } else if (annotations[j].type === "artifact") {
+                        var artifact = annotations[j].data;
+                        merged.push({
+                            type: "artifact",
+                            category: "artifact",
+                            isArtifact: true,
+                            artifactTitle: artifact.title || "Artifact",
+                            artifactDescription: artifact.description || "",
+                            artifactContent: artifact.content || "",
+                            contentType: artifact.content_type || "markdown",
+                            content: (artifact.title || "") + " " + (artifact.description || ""),
+                            artifactId: artifact.id,
+                            id: "artifact-" + artifact.id,
+                            duration: this._calculateCalloutDuration(
+                                (artifact.title || "") + " " + (artifact.description || "")
+                            ),
                             group_id: null,
                         });
                     }
