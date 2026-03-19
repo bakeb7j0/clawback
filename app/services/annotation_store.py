@@ -37,7 +37,7 @@ class AnnotationStore:
     def _annotation_path(self, session_id):
         """Build the annotation file path and verify it doesn't escape the sessions dir."""
         path = (self.sessions_dir / f"{session_id}-annotations.json").resolve()
-        if not str(path).startswith(str(self.sessions_dir)):
+        if path.resolve() != self.sessions_dir and self.sessions_dir not in path.resolve().parents:
             raise ValueError(f"Session ID {session_id!r} resolves outside sessions directory")
         return path
 

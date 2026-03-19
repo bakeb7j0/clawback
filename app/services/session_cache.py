@@ -56,7 +56,8 @@ class SessionCache:
                 continue
 
             file_path = (sessions_dir / file_name).resolve()
-            if not str(file_path).startswith(str(sessions_dir.resolve())):
+            sessions_resolved = sessions_dir.resolve()
+            if file_path != sessions_resolved and sessions_resolved not in file_path.parents:
                 logger.warning("Session %s path escapes sessions dir, skipping", session_id)
                 continue
 
