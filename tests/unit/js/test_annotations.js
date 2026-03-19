@@ -596,6 +596,54 @@ test("calling init again replaces all data", function () {
 });
 
 // ---------------------------------------------------------------------------
+// Edge case: beat ID bounds and empty arrays
+// ---------------------------------------------------------------------------
+console.log("\nedge case — beat ID bounds and empty arrays");
+
+test("getAnnotationsAfterBeat with negative beat ID returns empty array", function () {
+    var ann = freshAnnotations();
+    ann.init(makeSampleAnnotations(), "s1");
+    assert.deepStrictEqual(ann.getAnnotationsAfterBeat(-1), []);
+});
+
+test("getSectionForBeat with negative beat ID returns null", function () {
+    var ann = freshAnnotations();
+    ann.init(makeSampleAnnotations(), "s1");
+    assert.equal(ann.getSectionForBeat(-5), null);
+});
+
+test("getSectionForBeat with very large beat ID returns null", function () {
+    var ann = freshAnnotations();
+    ann.init(makeSampleAnnotations(), "s1");
+    assert.equal(ann.getSectionForBeat(99999), null);
+});
+
+test("init with explicitly empty arrays works correctly", function () {
+    var ann = freshAnnotations();
+    ann.init({ sections: [], callouts: [], artifacts: [] }, "s1");
+    assert.equal(ann.hasAnnotations(), false);
+    assert.equal(ann.hasSections(), false);
+    assert.deepStrictEqual(ann.getSections(), []);
+    assert.deepStrictEqual(ann.getAnnotationsAfterBeat(0), []);
+});
+
+test("init with empty object (no keys) works correctly", function () {
+    var ann = freshAnnotations();
+    ann.init({}, "s1");
+    assert.equal(ann.hasAnnotations(), false);
+    assert.equal(ann.hasSections(), false);
+    assert.deepStrictEqual(ann.getSections(), []);
+    assert.deepStrictEqual(ann.getCallouts(), []);
+    assert.deepStrictEqual(ann.getArtifacts(), []);
+});
+
+test("getAnnotationsAfterBeat with null afterBeatIndex returns empty array", function () {
+    var ann = freshAnnotations();
+    // Do not call init — leave _afterBeatIndex as null
+    assert.deepStrictEqual(ann.getAnnotationsAfterBeat(0), []);
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);

@@ -1437,7 +1437,7 @@ function clawbackApp() {
             if (typeof ClawbackAnnotations !== "undefined") {
                 return ClawbackAnnotations.getColorHex(colorKey);
             }
-            return "#95A5A6";
+            return typeof ANNOTATION_COLORS !== "undefined" ? ANNOTATION_COLORS.slate : "#95A5A6";
         },
 
         /** Update the active section based on the current beat. */
