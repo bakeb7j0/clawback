@@ -355,6 +355,106 @@ test("is safe when no engine exists", function () {
 });
 
 // ---------------------------------------------------------------------------
+// handleKeydown — keyboard shortcuts
+// ---------------------------------------------------------------------------
+console.log("\nhandleKeydown — keyboard shortcuts");
+
+function makeKeyEvent(code, opts) {
+    var prevented = false;
+    return Object.assign({
+        code: code,
+        target: { tagName: "BODY" },
+        preventDefault: function () { prevented = true; },
+        get defaultPrevented() { return prevented; },
+    }, opts || {});
+}
+
+test("Space toggles play in playback view", function () {
+    const app = makeApp(5);
+    assert.equal(app.playbackState, "READY");
+    var evt = makeKeyEvent("Space");
+    app.handleKeydown(evt);
+    assert.equal(app.playbackState, "PLAYING");
+    assert.equal(evt.defaultPrevented, true);
+});
+
+test("Space pauses when already playing", function () {
+    const app = makeApp(5);
+    app._engine.play();
+    assert.equal(app.playbackState, "PLAYING");
+    app.handleKeydown(makeKeyEvent("Space"));
+    assert.equal(app.playbackState, "PAUSED");
+});
+
+test("ArrowRight advances one beat", function () {
+    const app = makeApp(5);
+    var evt = makeKeyEvent("ArrowRight");
+    app.handleKeydown(evt);
+    assert.equal(app.currentBeat, 1);
+    assert.equal(evt.defaultPrevented, true);
+});
+
+test("ArrowLeft goes back one beat", function () {
+    const app = makeApp(5);
+    app._engine.next();
+    app._engine.next();
+    assert.equal(app.currentBeat, 2);
+    var evt = makeKeyEvent("ArrowLeft");
+    app.handleKeydown(evt);
+    assert.equal(app.currentBeat, 1);
+    assert.equal(evt.defaultPrevented, true);
+});
+
+test("keys are ignored in picker view", function () {
+    const app = clawbackApp();
+    app.$refs = { chatArea: { innerHTML: "", parentElement: {} } };
+    assert.equal(app.view, "picker");
+    var evt = makeKeyEvent("Space");
+    app.handleKeydown(evt);
+    assert.equal(app.playbackState, "READY");
+    assert.equal(evt.defaultPrevented, false);
+});
+
+test("keys are ignored when target is INPUT", function () {
+    const app = makeApp(5);
+    var evt = makeKeyEvent("Space", { target: { tagName: "INPUT" } });
+    app.handleKeydown(evt);
+    assert.equal(app.playbackState, "READY");
+    assert.equal(evt.defaultPrevented, false);
+});
+
+test("keys are ignored when target is TEXTAREA", function () {
+    const app = makeApp(5);
+    var evt = makeKeyEvent("Space", { target: { tagName: "TEXTAREA" } });
+    app.handleKeydown(evt);
+    assert.equal(app.playbackState, "READY");
+    assert.equal(evt.defaultPrevented, false);
+});
+
+test("keys are ignored when target is SELECT", function () {
+    const app = makeApp(5);
+    var evt = makeKeyEvent("Space", { target: { tagName: "SELECT" } });
+    app.handleKeydown(evt);
+    assert.equal(app.playbackState, "READY");
+    assert.equal(evt.defaultPrevented, false);
+});
+
+test("keys are ignored when target is contentEditable", function () {
+    const app = makeApp(5);
+    var evt = makeKeyEvent("Space", { target: { tagName: "DIV", isContentEditable: true } });
+    app.handleKeydown(evt);
+    assert.equal(app.playbackState, "READY");
+    assert.equal(evt.defaultPrevented, false);
+});
+
+test("unhandled keys are ignored (no error)", function () {
+    const app = makeApp(5);
+    var evt = makeKeyEvent("KeyA");
+    app.handleKeydown(evt);
+    assert.equal(evt.defaultPrevented, false);
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);

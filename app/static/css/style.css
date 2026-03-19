@@ -242,6 +242,7 @@ body {
     overflow-wrap: break-word;
     animation: fadeSlideUp 0.3s ease-out;
     line-height: 1.6;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* User bubble — right-aligned, distinct background */
@@ -403,6 +404,7 @@ body {
     border-radius: 12px;
     animation: fadeSlideUp 0.3s ease-out;
     overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .iw-card__header {

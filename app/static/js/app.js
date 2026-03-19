@@ -26,6 +26,28 @@ function clawbackApp() {
             this.fetchSessions();
         },
 
+        /** Handle keyboard shortcuts (bound via @keydown.window on body). */
+        handleKeydown(event) {
+            if (this.view !== "playback") return;
+            if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA" || event.target.tagName === "SELECT") return;
+            if (event.target.isContentEditable) return;
+
+            switch (event.code) {
+                case "Space":
+                    event.preventDefault();
+                    this.togglePlay();
+                    break;
+                case "ArrowLeft":
+                    event.preventDefault();
+                    this.previousBeat();
+                    break;
+                case "ArrowRight":
+                    event.preventDefault();
+                    this.nextBeat();
+                    break;
+            }
+        },
+
         /** Fetch the list of curated sessions from the API. */
         fetchSessions() {
             this.loadingSessions = true;

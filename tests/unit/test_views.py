@@ -90,6 +90,13 @@ def test_index_has_session_picker(client):
     assert "handleFileDrop" in html, "drag-and-drop handler must be present"
 
 
+def test_index_has_keyboard_shortcut_binding(client):
+    """Body element binds keyboard shortcuts via Alpine.js."""
+    html = client.get("/").data.decode()
+    assert "handleKeydown" in html, "keyboard shortcut handler must be bound"
+    assert "@keydown.window" in html, "keyboard events must use @keydown.window"
+
+
 def test_index_has_toolbar(client):
     """Index page includes the playback toolbar with all required controls."""
     html = client.get("/").data.decode()
