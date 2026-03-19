@@ -24,6 +24,10 @@ function clawbackApp() {
         progressSegments: [{ width: 100, color: null }],
         artifactOpen: false,
         _currentArtifact: null,
+        editMode: false,
+        _contextMenu: null,
+        editToast: "",
+        _editToastTimeout: null,
         _engine: null,
         _scroller: null,
         _conversationBeatsRendered: 0,
@@ -44,7 +48,9 @@ function clawbackApp() {
 
             switch (event.code) {
                 case "Escape":
-                    if (this.artifactOpen) {
+                    if (this._contextMenu) {
+                        this.dismissContextMenu();
+                    } else if (this.artifactOpen) {
                         this.closeArtifact();
                     }
                     break;
@@ -163,6 +169,9 @@ function clawbackApp() {
             this._beatIdToMergedIndex = null;
             this.artifactOpen = false;
             this._currentArtifact = null;
+            this.editMode = false;
+            this._contextMenu = null;
+            this.editToast = "";
             var panelContent = this.$refs.artifactPanelContent;
             if (panelContent) {
                 panelContent.innerHTML = "";
@@ -332,8 +341,9 @@ function clawbackApp() {
             this.showSections = !this.showSections;
         },
 
-        /** Open the artifact panel and pause playback. */
+        /** Open the artifact panel and pause playback. Disabled in edit mode. */
         openArtifact(beat) {
+            if (this.editMode) return;
             if (this._engine && this.playbackState === "PLAYING") {
                 this._engine.pause();
             }
@@ -353,6 +363,101 @@ function clawbackApp() {
             if (panelContent) {
                 panelContent.innerHTML = "";
             }
+        },
+
+        /** Toggle annotation editing mode. */
+        toggleEditMode() {
+            this.editMode = !this.editMode;
+            this.dismissContextMenu();
+        },
+
+        /**
+         * Handle clicks in the chat area during edit mode.
+         * Shows a context menu anchored to the clicked beat or annotation.
+         *
+         * @param {Event} event - Click event from the chat area
+         */
+        handleChatAreaClick(event) {
+            if (!this.editMode) return;
+
+            var target = event.target.closest(".bubble, .callout, .artifact-card");
+            if (!target) {
+                this.dismissContextMenu();
+                return;
+            }
+
+            if (this.playbackState === "PLAYING") {
+                this._showEditToast("Pause playback to edit");
+                return;
+            }
+
+            var beatId = target.dataset.beatId;
+            var isAnnotation = target.classList.contains("callout") ||
+                target.classList.contains("artifact-card");
+
+            var items;
+            if (isAnnotation) {
+                items = [
+                    { label: "Edit", action: "edit-annotation", icon: "\u270F\uFE0F" },
+                    { label: "Delete", action: "delete-annotation", icon: "\uD83D\uDDD1\uFE0F" },
+                ];
+            } else {
+                items = [
+                    { label: "Start Section", action: "start-section", icon: "\uD83D\uDCCC" },
+                    { label: "Add Note", action: "add-note", icon: "\uD83D\uDCDD" },
+                    { label: "Add Warning", action: "add-warning", icon: "\u26A0\uFE0F" },
+                    { label: "Attach Artifact", action: "attach-artifact", icon: "\uD83D\uDCC4" },
+                ];
+            }
+
+            // Position menu, clamped to viewport edges
+            var menuWidth = 200;
+            var menuHeight = items.length * 44 + 16;
+            var viewW = typeof window !== "undefined" ? window.innerWidth : 1024;
+            var viewH = typeof window !== "undefined" ? window.innerHeight : 768;
+            var x = Math.min(event.clientX, viewW - menuWidth - 8);
+            var y = Math.min(event.clientY, viewH - menuHeight - 8);
+            x = Math.max(8, x);
+            y = Math.max(8, y);
+
+            this._contextMenu = {
+                x: x,
+                y: y,
+                items: items,
+                beatId: beatId,
+                isAnnotation: isAnnotation,
+            };
+        },
+
+        /** Dismiss the context menu. */
+        dismissContextMenu() {
+            this._contextMenu = null;
+        },
+
+        /**
+         * Handle a context menu action selection.
+         * Stores the selected action details for downstream handlers.
+         *
+         * @param {string} action - The action key (e.g., "add-note", "delete-annotation")
+         */
+        handleContextMenuAction(action) {
+            var beatId = this._contextMenu ? this._contextMenu.beatId : null;
+            var isAnnotation = this._contextMenu ? this._contextMenu.isAnnotation : false;
+            this.dismissContextMenu();
+            // Annotation creation/editing dispatched in later issues (#50-#52)
+        },
+
+        /** Show a temporary edit-mode toast message. */
+        _showEditToast(msg) {
+            this.editToast = msg;
+            if (this._editToastTimeout) {
+                clearTimeout(this._editToastTimeout);
+            }
+            var self = this;
+            this._editToastTimeout = setTimeout(function () {
+                self.editToast = "";
+                self._editToastTimeout = null;
+            }, 2000);
         },
 
         /** Jump playback to the start of a section. */

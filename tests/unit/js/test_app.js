@@ -1062,6 +1062,233 @@ test("openArtifact calls renderArtifactPanel on renderer", function () {
 });
 
 // ---------------------------------------------------------------------------
+// Edit mode toggle
+// ---------------------------------------------------------------------------
+console.log("\nedit mode toggle");
+
+test("editMode defaults to false", function () {
+    const app = makeApp(5);
+    assert.equal(app.editMode, false);
+});
+
+test("toggleEditMode flips editMode", function () {
+    const app = makeApp(5);
+    app.toggleEditMode();
+    assert.equal(app.editMode, true);
+    app.toggleEditMode();
+    assert.equal(app.editMode, false);
+});
+
+test("toggleEditMode dismisses context menu", function () {
+    const app = makeApp(5);
+    app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
+    app.toggleEditMode();
+    assert.equal(app._contextMenu, null);
+});
+
+test("backToSessions resets edit state", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
+    app.editToast = "test";
+    app.backToSessions();
+    assert.equal(app.editMode, false);
+    assert.equal(app._contextMenu, null);
+    assert.equal(app.editToast, "");
+});
+
+// ---------------------------------------------------------------------------
+// Context menu — handleChatAreaClick
+// ---------------------------------------------------------------------------
+console.log("\ncontext menu — handleChatAreaClick");
+
+function makeMockElement(beatId, type) {
+    return {
+        dataset: { beatId: String(beatId) },
+        classList: {
+            contains: function (cls) { return cls === type; },
+        },
+    };
+}
+
+function makeClickEvent(x, y, targetElement) {
+    var stopped = false;
+    return {
+        clientX: x || 100,
+        clientY: y || 100,
+        stopPropagation: function () { stopped = true; },
+        get propagationStopped() { return stopped; },
+        target: {
+            closest: function () { return targetElement || null; },
+        },
+    };
+}
+
+test("does nothing when editMode is off", function () {
+    const app = makeApp(5);
+    app.editMode = false;
+    var el = makeMockElement(0, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+    assert.equal(app._contextMenu, null);
+});
+
+test("shows context menu on beat click when editMode + paused", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._engine.next();
+    assert.notEqual(app.playbackState, "PLAYING");
+    var el = makeMockElement(0, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 200, el));
+    assert.notEqual(app._contextMenu, null);
+    assert.equal(app._contextMenu.beatId, "0");
+    assert.equal(app._contextMenu.isAnnotation, false);
+    assert.equal(app._contextMenu.items.length, 4);
+});
+
+test("beat context menu has correct items", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._engine.next();
+    var el = makeMockElement(0, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+    var actions = app._contextMenu.items.map(function (i) { return i.action; });
+    assert.deepStrictEqual(actions, [
+        "start-section", "add-note", "add-warning", "attach-artifact"
+    ]);
+});
+
+test("annotation context menu has Edit and Delete items", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._engine.next();
+    var el = makeMockElement("callout-cal-1", "callout");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+    assert.notEqual(app._contextMenu, null);
+    assert.equal(app._contextMenu.isAnnotation, true);
+    assert.equal(app._contextMenu.items.length, 2);
+    var actions = app._contextMenu.items.map(function (i) { return i.action; });
+    assert.deepStrictEqual(actions, ["edit-annotation", "delete-annotation"]);
+});
+
+test("artifact-card click in editMode shows annotation menu", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._engine.next();
+    var el = makeMockElement("artifact-art-1", "artifact-card");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+    assert.notEqual(app._contextMenu, null);
+    assert.equal(app._contextMenu.isAnnotation, true);
+});
+
+test("shows toast when editMode + PLAYING", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._engine.play();
+    assert.equal(app.playbackState, "PLAYING");
+    var el = makeMockElement(0, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+    assert.equal(app._contextMenu, null);
+    assert.equal(app.editToast, "Pause playback to edit");
+});
+
+test("dismisses menu when clicking empty space", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
+    // Click event with no target element (empty space)
+    app.handleChatAreaClick(makeClickEvent(100, 100, null));
+    assert.equal(app._contextMenu, null);
+});
+
+test("context menu position is clamped to viewport", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._engine.next();
+    var el = makeMockElement(0, "bubble");
+    // Click at far right/bottom edge
+    app.handleChatAreaClick(makeClickEvent(9999, 9999, el));
+    assert.ok(app._contextMenu.x < 9999, "x should be clamped");
+    assert.ok(app._contextMenu.y < 9999, "y should be clamped");
+    assert.ok(app._contextMenu.x >= 8, "x should not be negative");
+    assert.ok(app._contextMenu.y >= 8, "y should not be negative");
+});
+
+test("Escape dismisses context menu before artifact panel", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = { innerHTML: "" };
+    app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
+    app.artifactOpen = true;
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._contextMenu, null, "context menu should be dismissed");
+    assert.equal(app.artifactOpen, true, "artifact panel should remain open");
+});
+
+test("Escape closes artifact panel when no context menu", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = { innerHTML: "" };
+    app.artifactOpen = true;
+    app._currentArtifact = {};
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app.artifactOpen, false);
+});
+
+test("dismissContextMenu clears _contextMenu", function () {
+    const app = makeApp(5);
+    app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
+    app.dismissContextMenu();
+    assert.equal(app._contextMenu, null);
+});
+
+test("handleContextMenuAction dismisses menu", function () {
+    const app = makeApp(5);
+    app._contextMenu = { x: 0, y: 0, items: [], beatId: "0", isAnnotation: false };
+    app.handleContextMenuAction("add-note");
+    assert.equal(app._contextMenu, null);
+});
+
+// ---------------------------------------------------------------------------
+// Edit mode — openArtifact interaction
+// ---------------------------------------------------------------------------
+console.log("\nedit mode — openArtifact interaction");
+
+test("openArtifact is blocked when editMode is on", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = {};
+    app.editMode = true;
+    app.openArtifact({ type: "artifact", artifactTitle: "X", artifactContent: "Y" });
+    assert.equal(app.artifactOpen, false, "panel should not open in edit mode");
+    assert.equal(app._currentArtifact, null);
+});
+
+test("openArtifact works when editMode is off", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = {};
+    app.editMode = false;
+    app.openArtifact({ type: "artifact", artifactTitle: "X", artifactContent: "Y" });
+    assert.equal(app.artifactOpen, true);
+});
+
+// ---------------------------------------------------------------------------
+// Edit toast
+// ---------------------------------------------------------------------------
+console.log("\nedit toast");
+
+test("_showEditToast sets editToast message", function () {
+    const app = makeApp(5);
+    app._showEditToast("Test message");
+    assert.equal(app.editToast, "Test message");
+});
+
+test("_showEditToast sets a timeout handle for auto-clear", function () {
+    const app = makeApp(5);
+    app._showEditToast("Test");
+    assert.equal(app.editToast, "Test");
+    assert.notEqual(app._editToastTimeout, null, "timeout should be set");
+    // Clean up timeout to prevent interference
+    clearTimeout(app._editToastTimeout);
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);
