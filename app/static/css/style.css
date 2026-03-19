@@ -1126,6 +1126,136 @@ body {
 }
 
 /* -----------------------------------------------------------------------
+   Inline annotation editor
+   ----------------------------------------------------------------------- */
+.inline-editor {
+    margin: 8px 0;
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    max-width: 720px;
+}
+
+.inline-editor--note {
+    border-left: 3px solid #5B9BD5;
+}
+
+.inline-editor--warning {
+    border-left: 3px solid #E67E22;
+}
+
+.inline-editor--artifact {
+    border-left: 3px solid #9B59B6;
+}
+
+.inline-editor__header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+}
+
+.inline-editor__textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.inline-editor__textarea:focus {
+    border-color: var(--color-accent);
+}
+
+.inline-editor__input {
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.inline-editor__input:focus {
+    border-color: var(--color-accent);
+}
+
+.inline-editor__select {
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 0.875rem;
+    outline: none;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.inline-editor__error {
+    color: #E74C3C;
+    font-size: 0.8rem;
+    min-height: 1.2em;
+    margin-top: 4px;
+}
+
+.inline-editor__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.inline-editor__cancel,
+.inline-editor__save {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.inline-editor__cancel {
+    background: none;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.inline-editor__cancel:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+.inline-editor__save {
+    background-color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+    color: #fff;
+}
+
+.inline-editor__save:hover {
+    background-color: var(--color-accent-hover);
+}
+
+/* -----------------------------------------------------------------------
    Edit toast notification
    ----------------------------------------------------------------------- */
 .edit-toast {
