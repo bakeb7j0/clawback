@@ -29,7 +29,9 @@ function clawbackApp() {
         /** Handle keyboard shortcuts (bound via @keydown.window on body). */
         handleKeydown(event) {
             if (this.view !== "playback") return;
-            if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA" || event.target.tagName === "SELECT") return;
+
+            var tag = event.target.tagName;
+            if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
             if (event.target.isContentEditable) return;
 
             switch (event.code) {
@@ -120,16 +122,21 @@ function clawbackApp() {
             reader.readAsText(file);
         },
 
-        /** Return to the session picker view. */
-        backToSessions() {
+        /** Tear down the current engine and scroller. */
+        _teardown(stopMethod) {
             if (this._engine) {
-                this._engine.pause();
+                this._engine[stopMethod]();
                 this._engine = null;
             }
             if (this._scroller) {
                 this._scroller.destroy();
                 this._scroller = null;
             }
+        },
+
+        /** Return to the session picker view. */
+        backToSessions() {
+            this._teardown("pause");
             this.view = "picker";
             this.playbackState = "READY";
             this.currentBeat = 0;
@@ -144,15 +151,7 @@ function clawbackApp() {
          * @param {string} [name] - Session display name
          */
         startPlayback(beats, name) {
-            // Tear down previous engine and scroller if re-entering
-            if (this._engine) {
-                this._engine.skipToStart();
-                this._engine = null;
-            }
-            if (this._scroller) {
-                this._scroller.destroy();
-                this._scroller = null;
-            }
+            this._teardown("skipToStart");
 
             this.sessionName = name || "";
             this.view = "playback";

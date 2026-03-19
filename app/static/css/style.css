@@ -287,6 +287,22 @@ body {
 }
 
 /* -----------------------------------------------------------------------
+   Shared code block styles (assistant bubbles + inner workings)
+   ----------------------------------------------------------------------- */
+.bubble--assistant pre,
+.iw-item__content pre {
+    border-radius: 6px;
+    overflow-x: auto;
+}
+
+.bubble--assistant pre code,
+.iw-item__content pre code {
+    display: block;
+    background-color: rgba(0, 0, 0, 0.3);
+    line-height: 1.5;
+}
+
+/* -----------------------------------------------------------------------
    Markdown content within assistant bubbles
    ----------------------------------------------------------------------- */
 .bubble--assistant h1,
@@ -338,16 +354,11 @@ body {
 
 .bubble--assistant pre {
     margin: 0.5em 0;
-    border-radius: 6px;
-    overflow-x: auto;
 }
 
 .bubble--assistant pre code {
-    display: block;
     padding: 12px;
-    background-color: rgba(0, 0, 0, 0.3);
     font-size: 0.85em;
-    line-height: 1.5;
 }
 
 .bubble--assistant table {
@@ -490,16 +501,11 @@ body {
 
 .iw-item__content pre {
     margin: 0;
-    border-radius: 6px;
-    overflow-x: auto;
 }
 
 .iw-item__content pre code {
-    display: block;
     padding: 8px 12px;
-    background-color: rgba(0, 0, 0, 0.3);
     font-size: 0.9em;
-    line-height: 1.5;
 }
 
 .iw-item__content--scrollable {

@@ -258,8 +258,7 @@ class PlaybackEngine {
         }, waitMs);
     }
 
-    _getBeatDurationMs(beat, speed) {
-        speed = speed !== undefined ? speed : this.speed;
+    _getBeatDurationMs(beat, speed = this.speed) {
         if (this.innerWorkingsMode === "collapsed" && beat.category === "inner_working") {
             return 0;
         }
