@@ -14,6 +14,7 @@ test-js:
 	node tests/unit/js/test_playback.js
 	node tests/unit/js/test_renderer.js
 	node tests/unit/js/test_scroller.js
+	node tests/unit/js/test_annotations.js
 	node tests/unit/js/test_app.js
 
 test-integration:
