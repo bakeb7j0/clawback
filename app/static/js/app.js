@@ -13,7 +13,7 @@ function clawbackApp() {
         currentBeat: 0,
         totalBeats: 0,
         speed: 1.0,
-        innerWorkingsMode: "expanded",
+        innerWorkingsMode: "collapsed",
         sessions: [],
         loadingSessions: true,
         loadingSession: false,
@@ -158,7 +158,7 @@ function clawbackApp() {
             this.currentBeat = 0;
             this.totalBeats = beats.length;
             this.speed = 1.0;
-            this.innerWorkingsMode = "expanded";
+            this.innerWorkingsMode = "collapsed";
 
             var chatArea = this.$refs.chatArea;
             chatArea.innerHTML = "";

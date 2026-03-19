@@ -30,9 +30,13 @@ function createScroller(options) {
     var _lastScrollTop = 0;
 
     function scrollToBottom() {
-        var lastChild = chatArea.lastElementChild;
-        if (!lastChild) return;
-        lastChild.scrollIntoView({ behavior: "smooth", block: "end" });
+        if (!chatArea.lastElementChild) return;
+        requestAnimationFrame(function () {
+            scrollContainer.scrollTo({
+                top: scrollContainer.scrollHeight,
+                behavior: "smooth",
+            });
+        });
     }
 
     function _onScroll() {

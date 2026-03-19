@@ -112,11 +112,11 @@ test("resets speed to 1.0", function () {
     assert.equal(app.speed, 1.0);
 });
 
-test("resets innerWorkingsMode to expanded", function () {
+test("resets innerWorkingsMode to collapsed", function () {
     const app = makeApp(5);
-    app.innerWorkingsMode = "collapsed";
+    app.innerWorkingsMode = "expanded";
     app.startPlayback(makeBeats(3), "Test2");
-    assert.equal(app.innerWorkingsMode, "expanded");
+    assert.equal(app.innerWorkingsMode, "collapsed");
 });
 
 test("sets view to playback", function () {

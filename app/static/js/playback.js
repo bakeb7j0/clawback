@@ -35,7 +35,7 @@ class PlaybackEngine {
         this.state = PlaybackState.READY;
         this.currentIndex = 0;
         this.speed = 1.0;
-        this.innerWorkingsMode = "expanded";
+        this.innerWorkingsMode = "collapsed";
 
         this._timer = null;
         this._beatStartTime = null;

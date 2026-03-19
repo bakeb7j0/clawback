@@ -7,6 +7,9 @@
 
 const assert = require("node:assert/strict");
 
+// Polyfill requestAnimationFrame for Node.js — execute callback synchronously
+global.requestAnimationFrame = function (cb) { cb(); };
+
 const { createScroller, SCROLL_THRESHOLD } = require("../../../app/static/js/scroller.js");
 
 let passed = 0;
@@ -31,10 +34,14 @@ function test(name, fn) {
 function makeScrollContainer(opts) {
     opts = opts || {};
     const _listeners = {};
+    const _scrollToCalls = [];
     return {
         scrollTop: opts.scrollTop !== undefined ? opts.scrollTop : 0,
         scrollHeight: opts.scrollHeight !== undefined ? opts.scrollHeight : 1000,
         clientHeight: opts.clientHeight !== undefined ? opts.clientHeight : 500,
+        scrollTo: function (options) {
+            _scrollToCalls.push(options);
+        },
         addEventListener: function (event, handler) {
             if (!_listeners[event]) _listeners[event] = [];
             _listeners[event].push(handler);
@@ -52,18 +59,13 @@ function makeScrollContainer(opts) {
         _listenerCount: function (event) {
             return (_listeners[event] || []).length;
         },
+        _scrollToCalls: _scrollToCalls,
     };
 }
 
 function makeChatArea(hasChildren) {
-    const scrollIntoViewCalls = [];
     return {
-        lastElementChild: hasChildren !== false ? {
-            scrollIntoView: function (options) {
-                scrollIntoViewCalls.push(options);
-            },
-        } : null,
-        _scrollIntoViewCalls: scrollIntoViewCalls,
+        lastElementChild: hasChildren !== false ? {} : null,
     };
 }
 
@@ -99,16 +101,16 @@ test("registers scroll event listener on container", function () {
 // ---------------------------------------------------------------------------
 console.log("\nscrollToBottom");
 
-test("calls scrollIntoView with smooth behavior on last child", function () {
-    const sc = makeScrollContainer();
+test("scrolls container to bottom with smooth behavior", function () {
+    const sc = makeScrollContainer({ scrollHeight: 2000 });
     const ca = makeChatArea(true);
     const scroller = createScroller({ scrollContainer: sc, chatArea: ca });
 
     scroller.scrollToBottom();
 
-    assert.equal(ca._scrollIntoViewCalls.length, 1);
-    assert.equal(ca._scrollIntoViewCalls[0].behavior, "smooth");
-    assert.equal(ca._scrollIntoViewCalls[0].block, "end");
+    assert.equal(sc._scrollToCalls.length, 1);
+    assert.equal(sc._scrollToCalls[0].top, 2000);
+    assert.equal(sc._scrollToCalls[0].behavior, "smooth");
 });
 
 test("is a no-op when chatArea has no children", function () {
@@ -118,7 +120,7 @@ test("is a no-op when chatArea has no children", function () {
 
     // Should not throw
     scroller.scrollToBottom();
-    assert.equal(ca._scrollIntoViewCalls.length, 0);
+    assert.equal(sc._scrollToCalls.length, 0);
 });
 
 // ---------------------------------------------------------------------------

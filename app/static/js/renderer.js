@@ -12,6 +12,9 @@
 /** @type {Map<number, Object>} Active inner workings groups by group_id */
 const _activeGroups = new Map();
 
+/** @type {boolean} Default expanded state for newly created IW cards */
+var _defaultExpanded = false;
+
 /**
  * Renders a beat and appends it to the container.
  *
@@ -85,6 +88,7 @@ function removeBeat(beat, container) {
  * @param {boolean} expanded - true to expand, false to collapse
  */
 function toggleAllInnerWorkings(_container, expanded) {
+    _defaultExpanded = expanded;
     for (const group of _activeGroups.values()) {
         if (group.expanded !== expanded) {
             _toggleCard(group);
@@ -101,6 +105,7 @@ function toggleAllInnerWorkings(_container, expanded) {
  */
 function resetGroups() {
     _activeGroups.clear();
+    _defaultExpanded = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -119,7 +124,7 @@ function _renderInnerWorkingBeat(beat, container) {
 
 function _createGroupCard(groupId, container) {
     const card = document.createElement("div");
-    card.classList.add("iw-card", "iw-card--collapsed");
+    card.classList.add("iw-card", _defaultExpanded ? "iw-card--expanded" : "iw-card--collapsed");
     card.dataset.groupId = String(groupId);
 
     const header = document.createElement("div");
@@ -135,7 +140,7 @@ function _createGroupCard(groupId, container) {
 
     const toggleBtn = document.createElement("button");
     toggleBtn.classList.add("iw-card__toggle");
-    toggleBtn.textContent = "\u25B6 Show";
+    toggleBtn.textContent = _defaultExpanded ? "\u25BC Hide" : "\u25B6 Show";
 
     header.appendChild(icon);
     header.appendChild(summary);
@@ -156,7 +161,7 @@ function _createGroupCard(groupId, container) {
         toggleBtn,
         items: new Map(),
         counts: { thinking: 0, tool_call: 0, tool_result: 0 },
-        expanded: false,
+        expanded: _defaultExpanded,
     };
 
     toggleBtn.addEventListener("click", function (e) {
@@ -231,9 +236,13 @@ function _addItemToGroup(beat, group) {
     }
     _updateSummary(group);
 
-    // Update max-height if card is currently expanded
+    // Update max-height instantly if card is currently expanded
+    // (skip CSS transition so scrollHeight reflects full height immediately)
     if (group.expanded) {
+        group.body.style.transition = "none";
         group.body.style.maxHeight = group.body.scrollHeight + "px";
+        group.body.offsetHeight; // force reflow
+        group.body.style.transition = "";
     }
 }
 

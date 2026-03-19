@@ -84,9 +84,9 @@ test("default speed is 1.0", () => {
     assert.equal(engine.speed, 1.0);
 });
 
-test("default innerWorkingsMode is expanded", () => {
+test("default innerWorkingsMode is collapsed", () => {
     const engine = new PlaybackEngine();
-    assert.equal(engine.innerWorkingsMode, "expanded");
+    assert.equal(engine.innerWorkingsMode, "collapsed");
 });
 
 test("handles construction with no arguments", () => {
