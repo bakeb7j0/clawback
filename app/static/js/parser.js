@@ -9,14 +9,11 @@
  *           assign group IDs → beat array
  */
 
-/** Words per minute for technical documentation reading pace. */
-const BASE_WPM = 200;
+/** Words per minute for dense technical content reading pace. */
+const BASE_WPM = 100;
 
 /** Minimum beat duration in seconds. */
 const MIN_DURATION = 1.0;
-
-/** Maximum beat duration in seconds. */
-const MAX_DURATION = 15.0;
 
 /**
  * Message types to keep from the JSONL stream.
@@ -336,7 +333,7 @@ function calculateDurations(beats) {
     for (const beat of beats) {
         const words = countWords(beat.content);
         const rawSeconds = (words / BASE_WPM) * 60;
-        beat.duration = Math.max(MIN_DURATION, Math.min(MAX_DURATION, rawSeconds));
+        beat.duration = Math.max(MIN_DURATION, rawSeconds);
     }
 }
 

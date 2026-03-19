@@ -11,9 +11,8 @@ Pipeline: Raw JSONL -> parse lines -> filter conversation messages ->
 import json
 from datetime import datetime, timezone
 
-BASE_WPM = 200
+BASE_WPM = 100
 MIN_DURATION = 1.0
-MAX_DURATION = 15.0
 CONVERSATION_TYPES = {"user", "assistant"}
 
 
@@ -283,7 +282,7 @@ def _calculate_durations(beats):
     for beat in beats:
         words = _count_words(beat["content"])
         raw_seconds = (words / BASE_WPM) * 60
-        beat["duration"] = max(MIN_DURATION, min(MAX_DURATION, raw_seconds))
+        beat["duration"] = max(MIN_DURATION, raw_seconds)
 
 
 def _assign_group_ids(beats):

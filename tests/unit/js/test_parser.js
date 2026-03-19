@@ -281,13 +281,13 @@ test("formats tool input — shows file_path for Read", () => {
 // ---------------------------------------------------------------------------
 console.log("\ncalculateDurations");
 
-test("calculates duration based on word count at 200 WPM", () => {
-    // 100 words at 200 WPM = 30 seconds, clamped to 15
+test("calculates duration based on word count at 100 WPM", () => {
+    // 100 words at 100 WPM = 60 seconds (no max cap)
     const beats = [
         { content: new Array(100).fill("word").join(" "), duration: 0 },
     ];
     parser.calculateDurations(beats);
-    assert.equal(beats[0].duration, 15.0, "should clamp to max 15s");
+    assert.equal(beats[0].duration, 60.0);
 });
 
 test("clamps minimum duration to 1 second", () => {
@@ -297,19 +297,28 @@ test("clamps minimum duration to 1 second", () => {
 });
 
 test("calculates proportional duration for mid-length content", () => {
-    // 50 words at 200 WPM = 15 seconds
+    // 50 words at 100 WPM = 30 seconds
     const beats = [
         { content: new Array(50).fill("word").join(" "), duration: 0 },
     ];
     parser.calculateDurations(beats);
-    assert.equal(beats[0].duration, 15.0);
+    assert.equal(beats[0].duration, 30.0);
 
-    // 20 words at 200 WPM = 6 seconds
+    // 20 words at 100 WPM = 12 seconds
     const beats2 = [
         { content: new Array(20).fill("word").join(" "), duration: 0 },
     ];
     parser.calculateDurations(beats2);
-    assert.equal(beats2[0].duration, 6.0);
+    assert.equal(beats2[0].duration, 12.0);
+});
+
+test("no max duration cap for long content", () => {
+    // 500 words at 100 WPM = 300 seconds
+    const beats = [
+        { content: new Array(500).fill("word").join(" "), duration: 0 },
+    ];
+    parser.calculateDurations(beats);
+    assert.equal(beats[0].duration, 300.0);
 });
 
 test("handles empty content", () => {
@@ -413,7 +422,6 @@ test("all beats have valid durations", () => {
     const { beats } = parser.parseSession(fixture);
     for (const beat of beats) {
         assert.ok(beat.duration >= 1.0, `beat ${beat.id} duration ${beat.duration} < 1.0`);
-        assert.ok(beat.duration <= 15.0, `beat ${beat.id} duration ${beat.duration} > 15.0`);
     }
 });
 
