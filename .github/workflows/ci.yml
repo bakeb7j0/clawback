@@ -52,7 +52,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=sha,prefix=,format=short
+            type=sha,format=short
 
       - uses: docker/build-push-action@v6
         with:
