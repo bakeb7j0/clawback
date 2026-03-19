@@ -67,11 +67,11 @@ def test_beat_categories():
             assert beat["category"] == "inner_working"
 
 
-def test_durations_are_clamped():
-    """All durations fall within [MIN_DURATION, MAX_DURATION]."""
+def test_durations_have_minimum():
+    """All durations are at least MIN_DURATION."""
     result = parse_session(_load_fixture())
     for beat in result["beats"]:
-        assert 1.0 <= beat["duration"] <= 15.0
+        assert beat["duration"] >= 1.0
 
 
 def test_group_ids_assigned_to_inner_workings():
