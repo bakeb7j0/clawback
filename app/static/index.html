@@ -76,7 +76,7 @@
                 <!-- Session picker content -->
                 <div class="picker" x-show="!loadingSessions && !loadingSession">
                     <!-- Session grid -->
-                    <div class="picker__grid" x-show="sessions.length > 0">
+                    <div class="picker__grid">
                         <template x-for="session in sessions" :key="session.id">
                             <div class="picker__card" @click="loadSession(session)">
                                 <h3 class="picker__card-title" x-text="session.title"></h3>
@@ -84,11 +84,62 @@
                                 <span class="picker__card-meta" x-text="session.beat_count + ' beats'"></span>
                             </div>
                         </template>
+                        <!-- Add Session card -->
+                        <label class="picker__card picker__card--add">
+                            <span class="picker__add-icon">+</span>
+                            <span class="picker__add-label">Add Session</span>
+                            <input type="file" accept=".jsonl" @change="openUploadForm($event)" hidden>
+                        </label>
                     </div>
 
-                    <p class="picker__empty" x-show="sessions.length === 0">
-                        No curated sessions available.
-                    </p>
+                    <!-- Upload metadata form modal -->
+                    <template x-if="_uploadForm">
+                        <div class="upload-form-backdrop"
+                             x-transition.opacity.duration.200ms
+                             @click="cancelUpload()"></div>
+                    </template>
+                    <template x-if="_uploadForm">
+                        <div class="upload-form"
+                             x-transition
+                             x-init="$nextTick(() => $refs.uploadTitleInput && $refs.uploadTitleInput.focus())">
+                            <div class="upload-form__header">
+                                <h3 class="upload-form__title">Add Session</h3>
+                                <button class="upload-form__close" @click="cancelUpload()" title="Cancel">&times;</button>
+                            </div>
+                            <div class="upload-form__body">
+                                <p class="upload-form__file" x-text="_uploadForm.file.name"></p>
+                                <label class="upload-form__label">Title *</label>
+                                <input class="upload-form__input"
+                                       type="text"
+                                       x-model="_uploadForm.title"
+                                       placeholder="Session title"
+                                       x-ref="uploadTitleInput"
+                                       @keydown.enter="submitUpload()">
+                                <label class="upload-form__label">Description</label>
+                                <input class="upload-form__input"
+                                       type="text"
+                                       x-model="_uploadForm.description"
+                                       placeholder="Brief description (optional)"
+                                       @keydown.enter="submitUpload()">
+                                <label class="upload-form__label">Tags</label>
+                                <input class="upload-form__input"
+                                       type="text"
+                                       x-model="_uploadForm.tags"
+                                       placeholder="Comma-separated tags (optional)"
+                                       @keydown.enter="submitUpload()">
+                                <p class="upload-form__error" x-show="_uploadForm.error" x-text="_uploadForm.error"></p>
+                            </div>
+                            <div class="upload-form__footer">
+                                <button class="upload-form__cancel" @click="cancelUpload()">Cancel</button>
+                                <button class="upload-form__submit"
+                                        @click="submitUpload()"
+                                        :disabled="_uploadForm.uploading">
+                                    <span x-show="!_uploadForm.uploading">Upload</span>
+                                    <span x-show="_uploadForm.uploading">Uploading&#8230;</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
 
                     <!-- Upload area -->
                     <div class="picker__upload">

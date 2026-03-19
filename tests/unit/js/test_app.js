@@ -54,10 +54,6 @@ global.ANNOTATION_COLORS = ANNOTATION_COLORS;
 var saveCalls = 0;
 ClawbackAnnotations.save = function () { saveCalls++; return Promise.resolve(); };
 
-// Mock save to prevent actual HTTP calls
-var saveCalls = 0;
-ClawbackAnnotations.save = function () { saveCalls++; return Promise.resolve(); };
-
 // Minimal document mock for inline editor DOM creation
 global.document = {
     createElement: function (tag) {
@@ -2314,6 +2310,104 @@ test("transport buttons dismiss edit form", function () {
     app._openCalloutEditForm("callout-" + callout.id, callout);
     app.skipToEnd();
     assert.equal(app._activeEditForm, null, "skipToEnd should dismiss");
+});
+
+// ---------------------------------------------------------------------------
+// Upload form — openUploadForm, cancelUpload, submitUpload
+// ---------------------------------------------------------------------------
+console.log("\nUpload form");
+
+function makeFakeFile(name) {
+    return { name: name || "test-session.jsonl" };
+}
+
+function makeFileEvent(file) {
+    var cleared = false;
+    return {
+        target: {
+            files: [file],
+            get value() { return cleared ? "" : "C:\\fakepath\\" + file.name; },
+            set value(v) { cleared = (v === ""); },
+        },
+    };
+}
+
+test("openUploadForm sets _uploadForm state", function () {
+    var app = makeApp();
+    var file = makeFakeFile("my-session.jsonl");
+    app.openUploadForm(makeFileEvent(file));
+
+    assert.notEqual(app._uploadForm, null);
+    assert.equal(app._uploadForm.file, file);
+    assert.equal(app._uploadForm.title, "my session");
+    assert.equal(app._uploadForm.description, "");
+    assert.equal(app._uploadForm.tags, "");
+    assert.equal(app._uploadForm.error, "");
+    assert.equal(app._uploadForm.uploading, false);
+});
+
+test("openUploadForm strips .jsonl and replaces hyphens/underscores", function () {
+    var app = makeApp();
+    app.openUploadForm(makeFileEvent(makeFakeFile("cool_demo-session.jsonl")));
+    assert.equal(app._uploadForm.title, "cool demo session");
+});
+
+test("openUploadForm clears file input value", function () {
+    var app = makeApp();
+    var evt = makeFileEvent(makeFakeFile());
+    app.openUploadForm(evt);
+    assert.equal(evt.target.value, "");
+});
+
+test("openUploadForm no-ops when no file selected", function () {
+    var app = makeApp();
+    app.openUploadForm({ target: { files: [] } });
+    assert.equal(app._uploadForm, null);
+});
+
+test("cancelUpload resets _uploadForm to null", function () {
+    var app = makeApp();
+    app.openUploadForm(makeFileEvent(makeFakeFile()));
+    assert.notEqual(app._uploadForm, null);
+    app.cancelUpload();
+    assert.equal(app._uploadForm, null);
+});
+
+test("submitUpload rejects empty title", function () {
+    var app = makeApp();
+    app.openUploadForm(makeFileEvent(makeFakeFile()));
+    app._uploadForm.title = "   ";
+    app.submitUpload();
+    assert.notEqual(app._uploadForm, null, "form should stay open");
+    assert.equal(app._uploadForm.error, "Title is required");
+    assert.equal(app._uploadForm.uploading, false);
+});
+
+test("submitUpload no-ops when _uploadForm is null", function () {
+    var app = makeApp();
+    // Should not throw
+    app.submitUpload();
+});
+
+test("Escape dismisses upload form in picker view", function () {
+    var app = makeApp();
+    app.view = "picker";
+    app.openUploadForm(makeFileEvent(makeFakeFile()));
+    assert.notEqual(app._uploadForm, null);
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._uploadForm, null);
+});
+
+test("Escape in picker view is no-op when no upload form open", function () {
+    var app = makeApp();
+    app.view = "picker";
+    // Should not throw
+    app.handleKeydown(makeKeyEvent("Escape"));
+});
+
+test("_uploadForm defaults to null", function () {
+    var app = makeApp();
+    assert.equal(app._uploadForm, null);
 });
 
 // ---------------------------------------------------------------------------

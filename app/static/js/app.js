@@ -32,6 +32,7 @@ function clawbackApp() {
         _pendingSection: null,
         _inlineEditor: null,
         _activeEditForm: null,
+        _uploadForm: null,
         _engine: null,
         _scroller: null,
         _conversationBeatsRendered: 0,
@@ -44,6 +45,12 @@ function clawbackApp() {
 
         /** Handle keyboard shortcuts (bound via @keydown.window on body). */
         handleKeydown(event) {
+            // Upload form Escape works in any view
+            if (event.code === "Escape" && this._uploadForm) {
+                this.cancelUpload();
+                return;
+            }
+
             if (this.view !== "playback") return;
 
             // Escape is always handled, even inside form inputs
@@ -154,6 +161,80 @@ function clawbackApp() {
                 self.uploadError = "Failed to read file.";
             };
             reader.readAsText(file);
+        },
+
+        // ---------------------------------------------------------------
+        // Server upload — "Add Session" flow
+        // ---------------------------------------------------------------
+
+        /**
+         * Open the upload form after the user selects a .jsonl file.
+         * Called by the hidden file input inside the "Add Session" card.
+         *
+         * @param {Event} event - File input change event
+         */
+        openUploadForm(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            // Pre-fill title from filename
+            var defaultTitle = file.name.replace(/\.jsonl$/, "").replace(/[-_]/g, " ");
+            this._uploadForm = {
+                file: file,
+                title: defaultTitle,
+                description: "",
+                tags: "",
+                error: "",
+                uploading: false,
+            };
+            // Reset input so the same file can be re-selected
+            event.target.value = "";
+        },
+
+        /** Cancel the upload form and discard the selected file. */
+        cancelUpload() {
+            this._uploadForm = null;
+        },
+
+        /** Submit the upload form to POST /api/sessions/upload. */
+        submitUpload() {
+            if (!this._uploadForm) return;
+            var title = this._uploadForm.title.trim();
+            if (!title) {
+                this._uploadForm.error = "Title is required";
+                return;
+            }
+            this._uploadForm.error = "";
+            this._uploadForm.uploading = true;
+
+            var formData = new FormData();
+            formData.append("file", this._uploadForm.file);
+            formData.append("title", title);
+            formData.append("description", this._uploadForm.description.trim());
+            formData.append("tags", this._uploadForm.tags.trim());
+
+            var self = this;
+            fetch("/api/sessions/upload", { method: "POST", body: formData })
+                .then(function (r) {
+                    return r.json().then(function (data) {
+                        return { ok: r.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    if (!self._uploadForm) return;
+                    if (!result.ok) {
+                        self._uploadForm.uploading = false;
+                        self._uploadForm.error = result.data.message || "Upload failed";
+                        return;
+                    }
+                    // Add the new session to the picker grid
+                    self.sessions.push(result.data.session);
+                    self._uploadForm = null;
+                })
+                .catch(function () {
+                    if (!self._uploadForm) return;
+                    self._uploadForm.uploading = false;
+                    self._uploadForm.error = "Upload failed — check your connection";
+                });
         },
 
         /** Tear down the current engine and scroller. */
