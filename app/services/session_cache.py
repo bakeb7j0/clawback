@@ -8,6 +8,7 @@ import json
 import logging
 from pathlib import Path
 
+from app.services.annotation_store import AnnotationStore
 from app.services.session_parser import parse_session
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ class SessionCache:
             manifest = [e for e in manifest if not e.get("debug")]
 
         self._manifest = manifest
+        annotation_store = AnnotationStore(sessions_dir)
 
         for entry in manifest:
             session_id = entry.get("id")
@@ -63,10 +65,12 @@ class SessionCache:
                 continue
 
             result = parse_session(file_path.read_text())
+            annotations = annotation_store.load(session_id)
             self._parsed[session_id] = {
                 "title": entry.get("title", session_id),
                 "beats": result["beats"],
                 "errors": result["errors"],
+                "annotations": annotations,
             }
 
         logger.info("Pre-parsed %d curated sessions", len(self._parsed))
@@ -78,3 +82,19 @@ class SessionCache:
     def get_session(self, session_id):
         """Return pre-parsed session data, or None if not found."""
         return self._parsed.get(session_id)
+
+    def update_annotations(self, session_id, annotations):
+        """Update cached annotations for a session without full reload."""
+        if session_id not in self._parsed:
+            return
+        self._parsed[session_id]["annotations"] = annotations
+
+    def add_session(self, session_id, entry, beats, annotations=None):
+        """Add a newly uploaded session to the cache without restart."""
+        self._manifest.append(entry)
+        self._parsed[session_id] = {
+            "title": entry.get("title", session_id),
+            "beats": beats,
+            "errors": 0,
+            "annotations": annotations,
+        }
