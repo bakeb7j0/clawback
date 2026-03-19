@@ -18,6 +18,10 @@ function clawbackApp() {
         loadingSessions: true,
         loadingSession: false,
         uploadError: "",
+        showSections: false,
+        activeSection: null,
+        sectionList: [],
+        progressSegments: [{ width: 100, color: null }],
         _engine: null,
         _scroller: null,
 
@@ -76,7 +80,7 @@ function clawbackApp() {
                 })
                 .then(function (data) {
                     this.loadingSession = false;
-                    this.startPlayback(data.beats, data.title || session.title);
+                    this.startPlayback(data.beats, data.title || session.title, data.annotations);
                 }.bind(this))
                 .catch(function (err) {
                     this.loadingSession = false;
@@ -142,6 +146,10 @@ function clawbackApp() {
             this.currentBeat = 0;
             this.totalBeats = 0;
             this.sessionName = "";
+            this.showSections = false;
+            this.activeSection = null;
+            this.sectionList = [];
+            this.progressSegments = [{ width: 100, color: null }];
         },
 
         /**
@@ -149,8 +157,9 @@ function clawbackApp() {
          *
          * @param {Array<Object>} beats - Beat array from parser
          * @param {string} [name] - Session display name
+         * @param {Object|null} [annotations] - Annotation data from API
          */
-        startPlayback(beats, name) {
+        startPlayback(beats, name, annotations) {
             this._teardown("skipToStart");
 
             this.sessionName = name || "";
@@ -159,6 +168,20 @@ function clawbackApp() {
             this.totalBeats = beats.length;
             this.speed = 1.0;
             this.innerWorkingsMode = "collapsed";
+
+            // Initialize annotations if available
+            if (typeof ClawbackAnnotations !== "undefined") {
+                ClawbackAnnotations.init(annotations || null, name || "local");
+                this.sectionList = ClawbackAnnotations.getSections();
+                this.showSections = ClawbackAnnotations.hasSections();
+                this.activeSection = null;
+                this.progressSegments = this._computeProgressSegments();
+            } else {
+                this.sectionList = [];
+                this.showSections = false;
+                this.activeSection = null;
+                this.progressSegments = [{ width: 100, color: null }];
+            }
 
             var chatArea = this.$refs.chatArea;
             chatArea.innerHTML = "";
@@ -181,6 +204,7 @@ function clawbackApp() {
                 onBeat: function (beat) {
                     ClawbackRenderer.renderBeat(beat, chatArea);
                     self.currentBeat = self._engine.currentIndex;
+                    self._updateActiveSection();
                     if (self._scroller) {
                         self._scroller.scrollToBottom();
                     }
@@ -188,6 +212,7 @@ function clawbackApp() {
                 onRemoveBeat: function (beat) {
                     ClawbackRenderer.removeBeat(beat, chatArea);
                     self.currentBeat = self._engine.currentIndex;
+                    self._updateActiveSection();
                 },
                 onStateChange: function (newState, oldState) {
                     self.playbackState = newState;
@@ -268,6 +293,86 @@ function clawbackApp() {
                     mode === "expanded"
                 );
             }
+        },
+
+        /** Toggle section sidebar visibility. */
+        toggleSections() {
+            this.showSections = !this.showSections;
+        },
+
+        /** Jump playback to the start of a section. */
+        jumpToSection(section) {
+            if (!this._engine) return;
+            this._engine.jumpToBeat(section.start_beat + 1);
+            this.currentBeat = this._engine.currentIndex;
+            this._updateActiveSection();
+            if (this._scroller) {
+                this._scroller.scrollToBottom();
+            }
+        },
+
+        /** Get the hex color for a section color key. */
+        getSectionColor(colorKey) {
+            if (typeof ClawbackAnnotations !== "undefined") {
+                return ClawbackAnnotations.getColorHex(colorKey);
+            }
+            return "#95A5A6";
+        },
+
+        /** Update the active section based on the current beat. */
+        _updateActiveSection() {
+            if (typeof ClawbackAnnotations !== "undefined" && ClawbackAnnotations.hasSections()) {
+                var beatId = this.currentBeat > 0 ? this.currentBeat - 1 : null;
+                this.activeSection = beatId !== null
+                    ? ClawbackAnnotations.getSectionForBeat(beatId)
+                    : null;
+            } else {
+                this.activeSection = null;
+            }
+        },
+
+        /** Compute progress bar segments from section data. */
+        _computeProgressSegments() {
+            if (
+                !this.totalBeats ||
+                typeof ClawbackAnnotations === "undefined" ||
+                !ClawbackAnnotations.hasSections()
+            ) {
+                return [{ width: 100, color: null }];
+            }
+
+            var sections = ClawbackAnnotations.getSections();
+            sections.sort(function (a, b) { return a.start_beat - b.start_beat; });
+
+            var segments = [];
+            var lastEnd = 0;
+
+            for (var i = 0; i < sections.length; i++) {
+                var sec = sections[i];
+                var effectiveStart = Math.max(sec.start_beat, lastEnd);
+                if (effectiveStart >= sec.end_beat + 1) continue; // fully overlapped
+                if (effectiveStart > lastEnd) {
+                    segments.push({
+                        width: ((effectiveStart - lastEnd) / this.totalBeats) * 100,
+                        color: null,
+                    });
+                }
+                var beats = sec.end_beat - effectiveStart + 1;
+                segments.push({
+                    width: (beats / this.totalBeats) * 100,
+                    color: ClawbackAnnotations.getColorHex(sec.color),
+                });
+                lastEnd = sec.end_beat + 1;
+            }
+
+            if (lastEnd < this.totalBeats) {
+                segments.push({
+                    width: ((this.totalBeats - lastEnd) / this.totalBeats) * 100,
+                    color: null,
+                });
+            }
+
+            return segments;
         },
     };
 }

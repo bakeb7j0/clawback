@@ -15,6 +15,7 @@
     --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
     --toolbar-height: 56px;
+    --sidebar-width: 220px;
 }
 
 /* Reset */
@@ -72,12 +73,78 @@ body {
     border-color: var(--color-text-muted);
 }
 
+/* Body layout wrapper — flex row for sidebar + main content */
+.app-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
 /* Main content area */
 .app-main {
     flex: 1;
     padding: 24px;
     padding-bottom: calc(var(--toolbar-height) + 24px);
     overflow-y: auto;
+    min-width: 0;
+}
+
+/* -----------------------------------------------------------------------
+   Section sidebar
+   ----------------------------------------------------------------------- */
+.section-sidebar {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    background-color: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    overflow-y: auto;
+    padding-bottom: var(--toolbar-height);
+}
+
+.section-sidebar__header {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.section-sidebar__title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.section-sidebar__list {
+    padding: 8px 0;
+}
+
+.section-sidebar__item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 16px;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.15s, border-left-color 0.15s;
+}
+
+.section-sidebar__item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.section-sidebar__item--active {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.section-sidebar__label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.section-sidebar__range {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
 }
 
 /* -----------------------------------------------------------------------
@@ -606,6 +673,43 @@ body {
     font-size: 0.85rem;
     color: var(--color-text-muted);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.toolbar__group--progress {
+    flex: 1;
+    max-width: 320px;
+    gap: 8px;
+}
+
+.toolbar__bar {
+    position: relative;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    flex: 1;
+    background-color: var(--color-bg);
+}
+
+.toolbar__bar-segments {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    opacity: 0.4;
+}
+
+.toolbar__bar-seg {
+    height: 100%;
+}
+
+.toolbar__bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.25);
+    transition: width 0.15s linear;
+    pointer-events: none;
 }
 
 /* -----------------------------------------------------------------------

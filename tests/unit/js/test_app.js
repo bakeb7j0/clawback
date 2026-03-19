@@ -44,6 +44,9 @@ global.ClawbackScroller = {
     },
 };
 
+const { ClawbackAnnotations, ANNOTATION_COLORS } = require("../../../app/static/js/annotations.js");
+global.ClawbackAnnotations = ClawbackAnnotations;
+
 const { clawbackApp } = require("../../../app/static/js/app.js");
 
 // ---------------------------------------------------------------------------
@@ -452,6 +455,171 @@ test("unhandled keys are ignored (no error)", function () {
     var evt = makeKeyEvent("KeyA");
     app.handleKeydown(evt);
     assert.equal(evt.defaultPrevented, false);
+});
+
+// ---------------------------------------------------------------------------
+// Section sidebar state
+// ---------------------------------------------------------------------------
+console.log("\nsection sidebar state");
+
+function makeSectionAnnotations() {
+    return {
+        sections: [
+            { id: "sec-1", start_beat: 0, end_beat: 2, label: "Intro", color: "blue" },
+            { id: "sec-2", start_beat: 4, end_beat: 6, label: "Main", color: "green" },
+        ],
+        callouts: [],
+        artifacts: [],
+    };
+}
+
+test("startPlayback with sections sets showSections true", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test", makeSectionAnnotations());
+    assert.equal(app.showSections, true);
+    assert.equal(app.sectionList.length, 2);
+});
+
+test("startPlayback without annotations sets showSections false", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test");
+    assert.equal(app.showSections, false);
+    assert.deepStrictEqual(app.sectionList, []);
+});
+
+test("startPlayback with null annotations sets showSections false", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test", null);
+    assert.equal(app.showSections, false);
+});
+
+test("toggleSections flips showSections", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test", makeSectionAnnotations());
+    assert.equal(app.showSections, true);
+    app.toggleSections();
+    assert.equal(app.showSections, false);
+    app.toggleSections();
+    assert.equal(app.showSections, true);
+});
+
+test("backToSessions resets section state", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test", makeSectionAnnotations());
+    assert.equal(app.showSections, true);
+    app.backToSessions();
+    assert.equal(app.showSections, false);
+    assert.equal(app.activeSection, null);
+    assert.deepStrictEqual(app.sectionList, []);
+});
+
+// ---------------------------------------------------------------------------
+// Active section tracking
+// ---------------------------------------------------------------------------
+console.log("\nactive section tracking");
+
+test("activeSection updates when advancing into a section", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test", makeSectionAnnotations());
+    assert.equal(app.activeSection, null);
+    app._engine.next(); // beat 0 rendered, currentBeat=1, active beat=0 → in sec-1
+    assert.equal(app.activeSection.id, "sec-1");
+});
+
+test("activeSection is null between sections", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test", makeSectionAnnotations());
+    // Advance past sec-1 (beats 0-2) into gap (beat 3)
+    app._engine.next(); // beat 0
+    app._engine.next(); // beat 1
+    app._engine.next(); // beat 2
+    app._engine.next(); // beat 3 — between sections
+    assert.equal(app.activeSection, null);
+});
+
+test("activeSection updates on jumpToSection", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test", makeSectionAnnotations());
+    var sections = app.sectionList;
+    app.jumpToSection(sections[1]); // Jump to sec-2 (start_beat=4)
+    assert.equal(app.activeSection.id, "sec-2");
+    assert.equal(app.currentBeat, 5); // beats 0-4 rendered
+});
+
+// ---------------------------------------------------------------------------
+// Progress segments
+// ---------------------------------------------------------------------------
+console.log("\nprogress segments");
+
+test("progress segments computed from sections", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test", makeSectionAnnotations());
+    // sec-1: beats 0-2 (3 beats), gap: beat 3 (1 beat), sec-2: beats 4-6 (3 beats), gap: beat 7 (1 beat)
+    var segs = app.progressSegments;
+    assert.equal(segs.length, 4);
+    // sec-1: 3/8 = 37.5%
+    assert.equal(segs[0].width, (3 / 8) * 100);
+    assert.equal(segs[0].color, ANNOTATION_COLORS.blue);
+    // gap: 1/8 = 12.5%
+    assert.equal(segs[1].width, (1 / 8) * 100);
+    assert.equal(segs[1].color, null);
+    // sec-2: 3/8 = 37.5%
+    assert.equal(segs[2].width, (3 / 8) * 100);
+    assert.equal(segs[2].color, ANNOTATION_COLORS.green);
+    // trailing gap: 1/8 = 12.5%
+    assert.equal(segs[3].width, (1 / 8) * 100);
+    assert.equal(segs[3].color, null);
+});
+
+test("overlapping sections clamp to non-overlapping segments", function () {
+    const app = makeApp();
+    var overlapping = {
+        sections: [
+            { id: "sec-1", start_beat: 0, end_beat: 5, label: "Wide", color: "blue" },
+            { id: "sec-2", start_beat: 3, end_beat: 7, label: "Overlap", color: "green" },
+        ],
+        callouts: [],
+        artifacts: [],
+    };
+    app.startPlayback(makeBeats(10), "Test", overlapping);
+    var segs = app.progressSegments;
+    // sec-1: beats 0-5 (6 beats), sec-2 clamped: beats 6-7 (2 beats), trailing gap: beats 8-9 (2 beats)
+    assert.equal(segs.length, 3);
+    assert.equal(segs[0].width, (6 / 10) * 100);
+    assert.equal(segs[0].color, ANNOTATION_COLORS.blue);
+    assert.equal(segs[1].width, (2 / 10) * 100);
+    assert.equal(segs[1].color, ANNOTATION_COLORS.green);
+    assert.equal(segs[2].width, (2 / 10) * 100);
+    assert.equal(segs[2].color, null);
+    // Total must be 100%
+    var total = segs.reduce(function (sum, s) { return sum + s.width; }, 0);
+    assert.equal(total, 100);
+});
+
+test("fully overlapped section is skipped in segments", function () {
+    const app = makeApp();
+    var contained = {
+        sections: [
+            { id: "sec-1", start_beat: 0, end_beat: 9, label: "Full", color: "blue" },
+            { id: "sec-2", start_beat: 3, end_beat: 5, label: "Inside", color: "green" },
+        ],
+        callouts: [],
+        artifacts: [],
+    };
+    app.startPlayback(makeBeats(10), "Test", contained);
+    var segs = app.progressSegments;
+    // sec-1 covers everything, sec-2 fully inside sec-1 → skipped
+    assert.equal(segs.length, 1);
+    assert.equal(segs[0].width, 100);
+    assert.equal(segs[0].color, ANNOTATION_COLORS.blue);
+});
+
+test("no sections produces single default segment", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(5), "Test");
+    assert.equal(app.progressSegments.length, 1);
+    assert.equal(app.progressSegments[0].width, 100);
+    assert.equal(app.progressSegments[0].color, null);
 });
 
 // ---------------------------------------------------------------------------
