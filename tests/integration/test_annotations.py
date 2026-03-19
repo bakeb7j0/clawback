@@ -1,7 +1,5 @@
 """Integration tests for annotation playback — sections, callouts, artifacts."""
 
-import re
-
 from playwright.sync_api import expect
 
 
