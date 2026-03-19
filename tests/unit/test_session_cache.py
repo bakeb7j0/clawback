@@ -51,6 +51,7 @@ def test_get_session_returns_parsed_data(cache):
     assert data is not None
     assert "beats" in data
     assert "title" in data
+    assert "annotations" in data
     assert len(data["beats"]) == 12
 
 
@@ -115,3 +116,90 @@ def test_load_missing_session_file(tmp_path):
     c.load(str(tmp_path))
     assert c.list_sessions() == [{"id": "missing", "title": "Missing", "file": "nope.jsonl"}]
     assert c.get_session("missing") is None
+
+
+def test_annotations_null_when_no_sidecar(cache):
+    """Sessions without annotation files have annotations=None."""
+    data = cache.get_session("demo-session")
+    assert data["annotations"] is None
+
+
+def test_annotations_loaded_when_sidecar_exists(tmp_path):
+    """Sessions with annotation sidecar files have annotations populated."""
+    # Create a minimal session
+    jsonl = (
+        '{"type":"user","message":{"content":"hello"},'
+        '"uuid":"u1","parentUuid":null,"timestamp":"2026-01-01T00:00:00Z"}\n'
+    )
+    (tmp_path / "test.jsonl").write_text(jsonl)
+
+    # Create manifest
+    manifest = [{"id": "test", "title": "Test", "file": "test.jsonl"}]
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+    # Create annotation sidecar
+    annotations = {
+        "session_id": "test",
+        "sections": [],
+        "callouts": [
+            {"id": "cal-1", "after_beat": 0, "style": "note", "content": "Hi"}
+        ],
+        "artifacts": [],
+    }
+    (tmp_path / "test-annotations.json").write_text(json.dumps(annotations))
+
+    c = SessionCache()
+    c.load(str(tmp_path))
+    data = c.get_session("test")
+    assert data is not None
+    assert data["annotations"] is not None
+    assert len(data["annotations"]["callouts"]) == 1
+
+
+def test_update_annotations(cache):
+    """update_annotations replaces cached annotations for a session."""
+    new_annotations = {
+        "session_id": "demo-session",
+        "sections": [],
+        "callouts": [],
+        "artifacts": [],
+    }
+    cache.update_annotations("demo-session", new_annotations)
+    data = cache.get_session("demo-session")
+    assert data["annotations"] == new_annotations
+
+
+def test_update_annotations_unknown_session(cache):
+    """update_annotations is a no-op for unknown sessions."""
+    cache.update_annotations("nonexistent", {"test": True})
+    assert cache.get_session("nonexistent") is None
+
+
+def test_add_session(cache):
+    """add_session adds a new session to both manifest and parsed data."""
+    entry = {"id": "new-session", "title": "New", "description": "Test", "file": "new.jsonl"}
+    beats = [{"id": 0, "type": "user_message", "content": "hello"}]
+    cache.add_session("new-session", entry, beats)
+
+    # Verify manifest updated
+    ids = [s["id"] for s in cache.list_sessions()]
+    assert "new-session" in ids
+
+    # Verify parsed data available
+    data = cache.get_session("new-session")
+    assert data is not None
+    assert data["title"] == "New"
+    assert len(data["beats"]) == 1
+    assert data["annotations"] is None
+
+
+def test_add_session_with_annotations(cache):
+    """add_session can include annotations."""
+    entry = {"id": "annotated", "title": "Annotated", "file": "a.jsonl"}
+    beats = [{"id": 0, "type": "user_message", "content": "hello"}]
+    annotations = {"session_id": "annotated", "sections": [], "callouts": [], "artifacts": []}
+    cache.add_session("annotated", entry, beats, annotations=annotations)
+
+    data = cache.get_session("annotated")
+    assert data["annotations"] is not None
+    assert data["annotations"]["session_id"] == "annotated"
