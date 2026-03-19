@@ -15,9 +15,31 @@ A web-based session replay tool for Claude Code. Clawback transforms Claude Code
 
 ## Quick Start
 
-### Docker (recommended)
+### Run from GitHub Container Registry
+
+Create a `docker-compose.yml`:
+
+```yaml
+services:
+  clawback:
+    image: ghcr.io/bakeb7j0/clawback:latest
+    ports:
+      - "8080:8080"
+    # environment:
+    #   CLAWBACK_SECRET: change-me
+```
 
 ```bash
+docker compose up
+```
+
+Open [http://localhost:8080](http://localhost:8080).
+
+### Build from source
+
+```bash
+git clone https://github.com/bakeb7j0/clawback.git
+cd clawback
 docker compose up
 ```
 
