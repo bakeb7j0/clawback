@@ -1,6 +1,7 @@
 from flask import Flask
 
 from app.config import Config
+from app.middleware.auth import check_secret
 
 
 def create_app(config=None):
@@ -10,6 +11,8 @@ def create_app(config=None):
 
     if config:
         app.config.update(config)
+
+    app.before_request(check_secret)
 
     from app.routes import register_blueprints
 
