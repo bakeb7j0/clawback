@@ -4,6 +4,15 @@
         "title": "Demo: File Review",
         "description": "A sample conversation where Claude reads and runs a Python file, then reviews a config.",
         "file": "demo-session.jsonl",
-        "beat_count": 12
+        "beat_count": 12,
+        "tags": ["tools", "code-review"]
+    },
+    {
+        "id": "debugging-session",
+        "title": "Debugging: API 500 Errors",
+        "description": "Watch a systematic debugging workflow — from symptom to root cause to fix, investigating a null-value bug in a profile update endpoint.",
+        "file": "debugging-session.jsonl",
+        "beat_count": 16,
+        "tags": ["debugging", "bug-fix", "api"]
     }
 ]
