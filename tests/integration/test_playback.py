@@ -112,6 +112,9 @@ def test_scroll_back_pauses_playback(playback_page):
     # Use a smaller viewport to ensure content overflows
     page.set_viewport_size({"width": 1280, "height": 400})
 
+    # Switch to expanded mode so IW beats have non-zero duration during play
+    page.locator(".toolbar__btn--iw", has_text="Expanded").click()
+
     # Step through beats to create scrollable content (no timing involved)
     next_btn = page.locator('button[title="Next beat"]')
     for _ in range(8):

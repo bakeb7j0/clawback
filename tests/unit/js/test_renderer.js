@@ -902,6 +902,27 @@ test("does not toggle cards already in desired state", () => {
     assert.ok(card.classList.contains("iw-card--collapsed"));
 });
 
+test("new cards respect expanded default after toggleAllInnerWorkings", () => {
+    const container = makeContainer();
+
+    // Set default to expanded
+    toggleAllInnerWorkings(container, true);
+
+    // Create a new card — should start expanded
+    const card = renderBeat(makeBeat(0, {
+        type: "thinking",
+        category: "inner_working",
+        group_id: 1,
+    }), container);
+
+    assert.ok(card.classList.contains("iw-card--expanded"));
+    assert.ok(!card.classList.contains("iw-card--collapsed"));
+
+    // Clean up: reset for other tests
+    resetGroups();
+    toggleAllInnerWorkings(container, false);
+});
+
 // ---------------------------------------------------------------------------
 // removeBeat — inner workings
 // ---------------------------------------------------------------------------
