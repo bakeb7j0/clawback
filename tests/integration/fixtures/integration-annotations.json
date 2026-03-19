@@ -1,0 +1,43 @@
+{
+  "session_id": "integration-test",
+  "sections": [
+    {
+      "id": "sec-review",
+      "label": "Code Review",
+      "start_beat": 0,
+      "end_beat": 4,
+      "color": "blue"
+    },
+    {
+      "id": "sec-config",
+      "label": "Config Check",
+      "start_beat": 5,
+      "end_beat": 9,
+      "color": "green"
+    }
+  ],
+  "callouts": [
+    {
+      "id": "cal-note",
+      "after_beat": 4,
+      "style": "note",
+      "content": "This is an instructor note about the code review."
+    },
+    {
+      "id": "cal-warn",
+      "after_beat": 9,
+      "style": "warning",
+      "content": "Security warning: debug mode should be disabled in production."
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-snippet",
+      "after_beat": 4,
+      "title": "Greeting Function",
+      "description": "The reviewed Python function",
+      "content_type": "code",
+      "content": "def greet(name):\n    return f'Hello, {name}!'"
+    }
+  ]
+}
