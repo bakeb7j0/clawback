@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+tests/
+Docs/
+CLAUDE.md
+*.md
+!README.md
+Makefile
+requirements-dev.txt
+.dockerignore
+.gitignore
