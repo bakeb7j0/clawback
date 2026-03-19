@@ -171,6 +171,15 @@ function _createGroupCard(groupId, container) {
     return group;
 }
 
+function _appendHighlightedCode(container, text) {
+    const pre = document.createElement("pre");
+    const code = document.createElement("code");
+    code.textContent = text;
+    pre.appendChild(code);
+    container.appendChild(pre);
+    hljs.highlightElement(code);
+}
+
 function _addItemToGroup(beat, group) {
     const item = document.createElement("div");
     item.classList.add("iw-item");
@@ -196,12 +205,7 @@ function _addItemToGroup(beat, group) {
         icon.textContent = "\uD83D\uDD27";
         const toolName = (beat.metadata && beat.metadata.tool_name) || "Unknown";
         label.textContent = "Tool Call: " + toolName;
-        const tcPre = document.createElement("pre");
-        const tcCode = document.createElement("code");
-        tcCode.textContent = beat.content;
-        tcPre.appendChild(tcCode);
-        content.appendChild(tcPre);
-        hljs.highlightElement(tcCode);
+        _appendHighlightedCode(content, beat.content);
     } else if (beat.type === "tool_result") {
         icon.textContent = "\uD83D\uDCCB";
         label.textContent = "Tool Result";
@@ -210,12 +214,7 @@ function _addItemToGroup(beat, group) {
             item.classList.add("iw-item--error");
         }
         content.classList.add("iw-item__content--scrollable");
-        const trPre = document.createElement("pre");
-        const trCode = document.createElement("code");
-        trCode.textContent = beat.content;
-        trPre.appendChild(trCode);
-        content.appendChild(trPre);
-        hljs.highlightElement(trCode);
+        _appendHighlightedCode(content, beat.content);
     }
 
     itemHeader.appendChild(icon);
@@ -238,19 +237,20 @@ function _addItemToGroup(beat, group) {
     }
 }
 
+function _pluralize(count, singular, plural) {
+    return count + " " + (count !== 1 ? plural : singular);
+}
+
 function _updateSummary(group) {
     const parts = [];
     if (group.counts.thinking > 0) {
-        const n = group.counts.thinking;
-        parts.push(n + " thought" + (n !== 1 ? "s" : ""));
+        parts.push(_pluralize(group.counts.thinking, "thought", "thoughts"));
     }
     if (group.counts.tool_call > 0) {
-        const n = group.counts.tool_call;
-        parts.push(n + " tool call" + (n !== 1 ? "s" : ""));
+        parts.push(_pluralize(group.counts.tool_call, "tool call", "tool calls"));
     }
     if (group.counts.tool_result > 0) {
-        const n = group.counts.tool_result;
-        parts.push(n + " result" + (n !== 1 ? "s" : ""));
+        parts.push(_pluralize(group.counts.tool_result, "result", "results"));
     }
     group.summary.textContent = "Inner workings: " + parts.join(", ");
 }
