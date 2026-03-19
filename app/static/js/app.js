@@ -30,6 +30,7 @@ function clawbackApp() {
         _editToastTimeout: null,
         _sectionForm: null,
         _pendingSection: null,
+        _inlineEditor: null,
         _engine: null,
         _scroller: null,
         _conversationBeatsRendered: 0,
@@ -50,6 +51,8 @@ function clawbackApp() {
                     this.cancelSectionForm();
                 } else if (this._pendingSection) {
                     this.cancelPendingSection();
+                } else if (this._inlineEditor) {
+                    this._dismissInlineEditor();
                 } else if (this._contextMenu) {
                     this.dismissContextMenu();
                 } else if (this.artifactOpen) {
@@ -183,6 +186,7 @@ function clawbackApp() {
             this.editToast = "";
             this._sectionForm = null;
             this._pendingSection = null;
+            this._dismissInlineEditor();
             var panelContent = this.$refs.artifactPanelContent;
             if (panelContent) {
                 panelContent.innerHTML = "";
@@ -406,9 +410,13 @@ function clawbackApp() {
                 return;
             }
 
+            // Clicks inside the inline editor are handled by the editor itself
+            if (event.target.closest(".inline-editor")) return;
+
             var target = event.target.closest(".bubble, .callout, .artifact-card");
             if (!target) {
                 this.dismissContextMenu();
+                this._dismissInlineEditor();
                 return;
             }
 
@@ -471,10 +479,17 @@ function clawbackApp() {
             var isAnnotation = this._contextMenu ? this._contextMenu.isAnnotation : false;
             this.dismissContextMenu();
 
-            if (action === "start-section" && beatId !== null) {
+            if (beatId === null) return;
+
+            if (action === "start-section") {
                 this._startSectionCreation(parseInt(beatId, 10));
+            } else if (action === "add-note") {
+                this._openCalloutEditor(parseInt(beatId, 10), "note");
+            } else if (action === "add-warning") {
+                this._openCalloutEditor(parseInt(beatId, 10), "warning");
+            } else if (action === "attach-artifact") {
+                this._openArtifactEditor(parseInt(beatId, 10));
             }
-            // Other actions dispatched in later issues (#51-#52)
         },
 
         /** Show a temporary edit-mode toast message. */
@@ -563,6 +578,320 @@ function clawbackApp() {
                 this.progressSegments = this._computeProgressSegments();
                 this._updateActiveSection();
             }
+        },
+
+
+        // ---------------------------------------------------------------
+        // Inline annotation editors
+        // ---------------------------------------------------------------
+
+        /**
+         * Open an inline callout editor below the target beat.
+         *
+         * @param {number} beatId - The beat ID to attach the callout to
+         * @param {string} style - "note" or "warning"
+         */
+        _openCalloutEditor(beatId, style) {
+            this._dismissInlineEditor();
+            var chatArea = this.$refs.chatArea;
+            if (!chatArea) return;
+            var beatEl = chatArea.querySelector('[data-beat-id="' + beatId + '"].bubble');
+            if (!beatEl) return;
+
+            var form = document.createElement("div");
+            form.className = "inline-editor inline-editor--" + style;
+
+            var header = document.createElement("div");
+            header.className = "inline-editor__header";
+            header.textContent = style === "warning" ? "\u26A0\uFE0F Add Warning" : "\uD83D\uDCDD Add Note";
+            form.appendChild(header);
+
+            var textarea = document.createElement("textarea");
+            textarea.className = "inline-editor__textarea";
+            textarea.placeholder = style === "warning" ? "Warning text\u2026" : "Note text\u2026";
+            textarea.rows = 3;
+            form.appendChild(textarea);
+
+            var errorMsg = document.createElement("div");
+            errorMsg.className = "inline-editor__error";
+            form.appendChild(errorMsg);
+
+            var footer = document.createElement("div");
+            footer.className = "inline-editor__footer";
+
+            var cancelBtn = document.createElement("button");
+            cancelBtn.className = "inline-editor__cancel";
+            cancelBtn.textContent = "Cancel";
+            footer.appendChild(cancelBtn);
+
+            var saveBtn = document.createElement("button");
+            saveBtn.className = "inline-editor__save";
+            saveBtn.textContent = "Save";
+            footer.appendChild(saveBtn);
+
+            form.appendChild(footer);
+
+            beatEl.insertAdjacentElement("afterend", form);
+            textarea.focus();
+
+            var self = this;
+            this._inlineEditor = {
+                type: "callout",
+                beatId: beatId,
+                style: style,
+                element: form,
+                textarea: textarea,
+                errorMsg: errorMsg,
+            };
+
+            cancelBtn.addEventListener("click", function () {
+                self._dismissInlineEditor();
+            });
+
+            saveBtn.addEventListener("click", function () {
+                self._saveCallout();
+            });
+
+            textarea.addEventListener("keydown", function (e) {
+                if (e.code === "Escape") {
+                    e.stopPropagation();
+                    self._dismissInlineEditor();
+                }
+            });
+        },
+
+        /** Save the current callout from the inline editor. */
+        _saveCallout() {
+            if (!this._inlineEditor || this._inlineEditor.type !== "callout") return;
+            var content = this._inlineEditor.textarea.value.trim();
+            if (!content) {
+                this._inlineEditor.errorMsg.textContent = "Content cannot be empty";
+                return;
+            }
+
+            var beatId = this._inlineEditor.beatId;
+            var style = this._inlineEditor.style;
+
+            if (typeof ClawbackAnnotations === "undefined") {
+                this._showEditToast("Annotations not available");
+                return;
+            }
+
+            var callout = ClawbackAnnotations.createCallout(beatId, style, content);
+            this._renderInlineAnnotation(beatId, {
+                type: "callout",
+                category: "callout",
+                isCallout: true,
+                calloutStyle: style,
+                content: content,
+                calloutId: callout.id,
+                id: "callout-" + callout.id,
+                group_id: null,
+            });
+
+            var self = this;
+            ClawbackAnnotations.save().catch(function () {
+                self._showEditToast("Save failed — callout may not persist");
+            });
+            this._dismissInlineEditor();
+        },
+
+        /**
+         * Open an inline artifact editor below the target beat.
+         *
+         * @param {number} beatId - The beat ID to attach the artifact to
+         */
+        _openArtifactEditor(beatId) {
+            this._dismissInlineEditor();
+            var chatArea = this.$refs.chatArea;
+            if (!chatArea) return;
+            var beatEl = chatArea.querySelector('[data-beat-id="' + beatId + '"].bubble');
+            if (!beatEl) return;
+
+            var form = document.createElement("div");
+            form.className = "inline-editor inline-editor--artifact";
+
+            var header = document.createElement("div");
+            header.className = "inline-editor__header";
+            header.textContent = "\uD83D\uDCC4 Attach Artifact";
+            form.appendChild(header);
+
+            // Title
+            var titleInput = document.createElement("input");
+            titleInput.className = "inline-editor__input";
+            titleInput.type = "text";
+            titleInput.placeholder = "Artifact title";
+            form.appendChild(titleInput);
+
+            // Description
+            var descInput = document.createElement("input");
+            descInput.className = "inline-editor__input";
+            descInput.type = "text";
+            descInput.placeholder = "Brief description (optional)";
+            form.appendChild(descInput);
+
+            // Content type dropdown
+            var typeSelect = document.createElement("select");
+            typeSelect.className = "inline-editor__select";
+            var mdOpt = document.createElement("option");
+            mdOpt.value = "markdown";
+            mdOpt.textContent = "Markdown";
+            typeSelect.appendChild(mdOpt);
+            var codeOpt = document.createElement("option");
+            codeOpt.value = "code";
+            codeOpt.textContent = "Code";
+            typeSelect.appendChild(codeOpt);
+            form.appendChild(typeSelect);
+
+            // Content textarea
+            var textarea = document.createElement("textarea");
+            textarea.className = "inline-editor__textarea";
+            textarea.placeholder = "Artifact content\u2026";
+            textarea.rows = 6;
+            form.appendChild(textarea);
+
+            var errorMsg = document.createElement("div");
+            errorMsg.className = "inline-editor__error";
+            form.appendChild(errorMsg);
+
+            var footer = document.createElement("div");
+            footer.className = "inline-editor__footer";
+
+            var cancelBtn = document.createElement("button");
+            cancelBtn.className = "inline-editor__cancel";
+            cancelBtn.textContent = "Cancel";
+            footer.appendChild(cancelBtn);
+
+            var saveBtn = document.createElement("button");
+            saveBtn.className = "inline-editor__save";
+            saveBtn.textContent = "Save";
+            footer.appendChild(saveBtn);
+
+            form.appendChild(footer);
+
+            beatEl.insertAdjacentElement("afterend", form);
+            titleInput.focus();
+
+            var self = this;
+            this._inlineEditor = {
+                type: "artifact",
+                beatId: beatId,
+                element: form,
+                titleInput: titleInput,
+                descInput: descInput,
+                typeSelect: typeSelect,
+                textarea: textarea,
+                errorMsg: errorMsg,
+            };
+
+            cancelBtn.addEventListener("click", function () {
+                self._dismissInlineEditor();
+            });
+
+            saveBtn.addEventListener("click", function () {
+                self._saveArtifact();
+            });
+
+            textarea.addEventListener("keydown", function (e) {
+                if (e.code === "Escape") {
+                    e.stopPropagation();
+                    self._dismissInlineEditor();
+                }
+            });
+            titleInput.addEventListener("keydown", function (e) {
+                if (e.code === "Escape") {
+                    e.stopPropagation();
+                    self._dismissInlineEditor();
+                }
+            });
+            descInput.addEventListener("keydown", function (e) {
+                if (e.code === "Escape") {
+                    e.stopPropagation();
+                    self._dismissInlineEditor();
+                }
+            });
+            typeSelect.addEventListener("keydown", function (e) {
+                if (e.code === "Escape") {
+                    e.stopPropagation();
+                    self._dismissInlineEditor();
+                }
+            });
+        },
+
+        /** Save the current artifact from the inline editor. */
+        _saveArtifact() {
+            if (!this._inlineEditor || this._inlineEditor.type !== "artifact") return;
+            var title = this._inlineEditor.titleInput.value.trim();
+            var description = this._inlineEditor.descInput.value.trim();
+            var contentType = this._inlineEditor.typeSelect.value;
+            var content = this._inlineEditor.textarea.value.trim();
+
+            if (!title) {
+                this._inlineEditor.errorMsg.textContent = "Title cannot be empty";
+                return;
+            }
+            if (!content) {
+                this._inlineEditor.errorMsg.textContent = "Content cannot be empty";
+                return;
+            }
+
+            var beatId = this._inlineEditor.beatId;
+
+            if (typeof ClawbackAnnotations === "undefined") {
+                this._showEditToast("Annotations not available");
+                return;
+            }
+
+            var artifact = ClawbackAnnotations.createArtifact(beatId, title, description, contentType, content);
+            this._renderInlineAnnotation(beatId, {
+                type: "artifact",
+                category: "artifact",
+                isArtifact: true,
+                artifactTitle: title,
+                artifactDescription: description,
+                artifactContent: content,
+                contentType: contentType,
+                content: title + " " + description,
+                artifactId: artifact.id,
+                id: "artifact-" + artifact.id,
+                group_id: null,
+            });
+
+            var self = this;
+            ClawbackAnnotations.save().catch(function () {
+                self._showEditToast("Save failed — artifact may not persist");
+            });
+            this._dismissInlineEditor();
+        },
+
+        /**
+         * Render a newly created annotation into the chat area after a beat.
+         *
+         * @param {number} beatId - The beat ID this annotation follows
+         * @param {Object} pseudoBeat - The pseudo-beat object for the renderer
+         */
+        _renderInlineAnnotation(beatId, pseudoBeat) {
+            var chatArea = this.$refs.chatArea;
+            if (!chatArea || typeof ClawbackRenderer === "undefined") return;
+
+            // Find the beat element and insert the rendered annotation after it
+            var beatEl = chatArea.querySelector('[data-beat-id="' + beatId + '"].bubble');
+            if (!beatEl) return;
+
+            var el = ClawbackRenderer.renderBeat(pseudoBeat, chatArea);
+            if (el) {
+                // renderBeat appends to container end; detach then reinsert after the beat
+                if (el.parentNode) el.parentNode.removeChild(el);
+                beatEl.insertAdjacentElement("afterend", el);
+            }
+        },
+
+        /** Dismiss and remove the inline editor from the DOM. */
+        _dismissInlineEditor() {
+            if (this._inlineEditor && this._inlineEditor.element) {
+                this._inlineEditor.element.remove();
+            }
+            this._inlineEditor = null;
         },
 
         /** Jump playback to the start of a section. */

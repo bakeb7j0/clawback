@@ -54,6 +54,38 @@ global.ANNOTATION_COLORS = ANNOTATION_COLORS;
 var saveCalls = 0;
 ClawbackAnnotations.save = function () { saveCalls++; return Promise.resolve(); };
 
+// Mock save to prevent actual HTTP calls
+var saveCalls = 0;
+ClawbackAnnotations.save = function () { saveCalls++; return Promise.resolve(); };
+
+// Minimal document mock for inline editor DOM creation
+global.document = {
+    createElement: function (tag) {
+        var el = {
+            tagName: tag.toUpperCase(),
+            className: "",
+            textContent: "",
+            type: "",
+            placeholder: "",
+            rows: 0,
+            value: "",
+            children: [],
+            style: {},
+            dataset: {},
+            _listeners: {},
+            appendChild: function (child) { el.children.push(child); },
+            insertAdjacentElement: function () {},
+            addEventListener: function (evt, fn) {
+                if (!el._listeners[evt]) el._listeners[evt] = [];
+                el._listeners[evt].push(fn);
+            },
+            focus: function () {},
+            remove: function () {},
+        };
+        return el;
+    },
+};
+
 const { clawbackApp } = require("../../../app/static/js/app.js");
 
 // ---------------------------------------------------------------------------
@@ -93,7 +125,13 @@ function makeBeats(n) {
 function makeApp(numBeats) {
     resetRendererCalls();
     const app = clawbackApp();
-    app.$refs = { chatArea: { innerHTML: "", parentElement: {} } };
+    app.$refs = {
+        chatArea: {
+            innerHTML: "",
+            parentElement: {},
+            querySelector: function () { return null; },
+        },
+    };
     if (numBeats !== undefined) {
         app.startPlayback(makeBeats(numBeats), "Test");
     }
@@ -1124,7 +1162,11 @@ function makeClickEvent(x, y, targetElement) {
         stopPropagation: function () { stopped = true; },
         get propagationStopped() { return stopped; },
         target: {
-            closest: function () { return targetElement || null; },
+            closest: function (sel) {
+                // .inline-editor should always return null for standard beat clicks
+                if (sel === ".inline-editor") return null;
+                return targetElement || null;
+            },
         },
     };
 }
@@ -1369,11 +1411,264 @@ test("Escape cancels pending section", function () {
     assert.equal(app._pendingSection, null);
 });
 
-test("Escape priority: form > pending > context menu > artifact", function () {
+// Inline annotation editors — callout and artifact creation
+// ---------------------------------------------------------------------------
+console.log("\ninline annotation editors — callout and artifact creation");
+
+/**
+ * Create a mock chat area with a querySelector that finds beat elements.
+ * Uses a simple registry of elements keyed by their beat ID selector.
+ */
+function makeMockChatArea() {
+    var children = [];
+    var area = {
+        innerHTML: "",
+        parentElement: {},
+        _elements: {},
+        querySelector: function (sel) {
+            // Match selectors like [data-beat-id="3"].bubble
+            var m = sel.match(/\[data-beat-id="(\d+)"\]\.(\w+)/);
+            if (m) {
+                var key = m[1] + "." + m[2];
+                return area._elements[key] || null;
+            }
+            return null;
+        },
+        appendChild: function (el) { children.push(el); },
+        get children() { return children; },
+    };
+    return area;
+}
+
+function addBeatToChatArea(chatArea, beatId, type) {
+    var inserted = [];
+    var el = {
+        dataset: { beatId: String(beatId) },
+        classList: { contains: function (cls) { return cls === type; } },
+        insertAdjacentElement: function (pos, child) { inserted.push({ pos: pos, child: child }); },
+        _inserted: inserted,
+    };
+    chatArea._elements[beatId + "." + type] = el;
+    return el;
+}
+
+test("_inlineEditor defaults to null", function () {
     const app = makeApp(5);
+    assert.equal(app._inlineEditor, null);
+});
+
+test("add-note action opens callout editor", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 2, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._contextMenu = { beatId: "2", isAnnotation: false, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("add-note");
+
+    assert.notEqual(app._inlineEditor, null);
+    assert.equal(app._inlineEditor.type, "callout");
+    assert.equal(app._inlineEditor.beatId, 2);
+    assert.equal(app._inlineEditor.style, "note");
+    assert.equal(app._contextMenu, null, "menu should be dismissed");
+});
+
+test("add-warning action opens warning editor", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 3, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._contextMenu = { beatId: "3", isAnnotation: false, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("add-warning");
+
+    assert.notEqual(app._inlineEditor, null);
+    assert.equal(app._inlineEditor.type, "callout");
+    assert.equal(app._inlineEditor.style, "warning");
+});
+
+test("attach-artifact action opens artifact editor", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 1, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._contextMenu = { beatId: "1", isAnnotation: false, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("attach-artifact");
+
+    assert.notEqual(app._inlineEditor, null);
+    assert.equal(app._inlineEditor.type, "artifact");
+    assert.equal(app._inlineEditor.beatId, 1);
+});
+
+test("callout editor has textarea and buttons", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openCalloutEditor(0, "note");
+    assert.notEqual(app._inlineEditor.textarea, null);
+    assert.notEqual(app._inlineEditor.errorMsg, null);
+    assert.notEqual(app._inlineEditor.element, null);
+});
+
+test("artifact editor has title, desc, type, and content fields", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openArtifactEditor(0);
+    assert.notEqual(app._inlineEditor.titleInput, null);
+    assert.notEqual(app._inlineEditor.descInput, null);
+    assert.notEqual(app._inlineEditor.typeSelect, null);
+    assert.notEqual(app._inlineEditor.textarea, null);
+});
+
+test("_dismissInlineEditor removes element and clears state", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openCalloutEditor(0, "note");
+    assert.notEqual(app._inlineEditor, null);
+    app._dismissInlineEditor();
+    assert.equal(app._inlineEditor, null);
+});
+
+test("_saveCallout rejects empty content", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openCalloutEditor(0, "note");
+    app._inlineEditor.textarea.value = "   ";
+    app._saveCallout();
+    assert.notEqual(app._inlineEditor, null, "editor should stay open");
+    assert.equal(app._inlineEditor.errorMsg.textContent, "Content cannot be empty");
+});
+
+test("_saveCallout creates annotation and dismisses editor", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    var beatEl = addBeatToChatArea(chatArea, 2, "bubble");
+    app.$refs.chatArea = chatArea;
+    saveCalls = 0;
+
+    // Reset annotations for clean test
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+
+    app._openCalloutEditor(2, "warning");
+    app._inlineEditor.textarea.value = "Watch out!";
+    app._saveCallout();
+
+    assert.equal(app._inlineEditor, null, "editor should be dismissed");
+    var callouts = ClawbackAnnotations.getCallouts();
+    var found = callouts.find(function (c) { return c.content === "Watch out!"; });
+    assert.ok(found, "callout should exist");
+    assert.equal(found.style, "warning");
+    assert.equal(found.after_beat, 2);
+    assert.ok(saveCalls > 0, "save should be called");
+    // Verify rendered element was inserted after the beat
+    assert.equal(beatEl._inserted.length, 2, "form + annotation inserted");
+    assert.equal(beatEl._inserted[1].pos, "afterend", "annotation at afterend");
+});
+
+test("_saveArtifact rejects empty title", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openArtifactEditor(0);
+    app._inlineEditor.titleInput.value = "";
+    app._inlineEditor.textarea.value = "some content";
+    app._saveArtifact();
+    assert.notEqual(app._inlineEditor, null, "editor should stay open");
+    assert.equal(app._inlineEditor.errorMsg.textContent, "Title cannot be empty");
+});
+
+test("_saveArtifact rejects empty content", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openArtifactEditor(0);
+    app._inlineEditor.titleInput.value = "My Artifact";
+    app._inlineEditor.textarea.value = "   ";
+    app._saveArtifact();
+    assert.notEqual(app._inlineEditor, null, "editor should stay open");
+    assert.equal(app._inlineEditor.errorMsg.textContent, "Content cannot be empty");
+});
+
+test("_saveArtifact creates annotation and dismisses editor", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    var beatEl = addBeatToChatArea(chatArea, 3, "bubble");
+    app.$refs.chatArea = chatArea;
+    saveCalls = 0;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+
+    app._openArtifactEditor(3);
+    app._inlineEditor.titleInput.value = "Code Sample";
+    app._inlineEditor.descInput.value = "A description";
+    app._inlineEditor.typeSelect.value = "code";
+    app._inlineEditor.textarea.value = "console.log('hi');";
+    app._saveArtifact();
+
+    assert.equal(app._inlineEditor, null, "editor should be dismissed");
+    var artifacts = ClawbackAnnotations.getArtifacts();
+    var found = artifacts.find(function (a) { return a.title === "Code Sample"; });
+    assert.ok(found, "artifact should exist");
+    assert.equal(found.content_type, "code");
+    assert.equal(found.content, "console.log('hi');");
+    assert.equal(found.after_beat, 3);
+    assert.ok(saveCalls > 0, "save should be called");
+    // Verify rendered element was inserted after the beat
+    assert.equal(beatEl._inserted.length, 2, "form + annotation inserted");
+    assert.equal(beatEl._inserted[1].pos, "afterend", "annotation at afterend");
+});
+
+test("opening a new editor dismisses existing one", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    addBeatToChatArea(chatArea, 1, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openCalloutEditor(0, "note");
+    assert.equal(app._inlineEditor.beatId, 0);
+    app._openCalloutEditor(1, "warning");
+    assert.equal(app._inlineEditor.beatId, 1, "should be new editor");
+});
+
+test("Escape dismisses inline editor", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openCalloutEditor(0, "note");
+    assert.notEqual(app._inlineEditor, null);
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._inlineEditor, null);
+});
+
+test("Escape priority: form > pending > inline editor > context menu > artifact", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
     app.$refs.artifactPanelContent = { innerHTML: "" };
+
     app._sectionForm = { beatId: 0, label: "T", color: "blue" };
     app._pendingSection = { startBeat: 0, label: "T", color: "blue" };
+    app._openCalloutEditor(0, "note");
     app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
     app.artifactOpen = true;
 
@@ -1383,10 +1678,14 @@ test("Escape priority: form > pending > context menu > artifact", function () {
 
     app.handleKeydown(makeKeyEvent("Escape"));
     assert.equal(app._pendingSection, null, "pending dismissed second");
+    assert.notEqual(app._inlineEditor, null, "inline editor still active");
+
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._inlineEditor, null, "inline editor dismissed third");
     assert.notEqual(app._contextMenu, null, "context menu still active");
 
     app.handleKeydown(makeKeyEvent("Escape"));
-    assert.equal(app._contextMenu, null, "context menu dismissed third");
+    assert.equal(app._contextMenu, null, "context menu dismissed fourth");
     assert.equal(app.artifactOpen, true, "artifact still open");
 
     app.handleKeydown(makeKeyEvent("Escape"));
@@ -1527,6 +1826,143 @@ test("palette includes all ANNOTATION_COLORS keys", function () {
     Object.keys(ANNOTATION_COLORS).forEach(function (k) {
         assert.ok(keys.indexOf(k) !== -1, "should include " + k);
     });
+});
+
+test("Escape works from TEXTAREA elements for editor dismissal", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openCalloutEditor(0, "note");
+    var evt = makeKeyEvent("Escape", { target: { tagName: "TEXTAREA" } });
+    app.handleKeydown(evt);
+    assert.equal(app._inlineEditor, null, "editor should be dismissed from textarea");
+});
+
+test("backToSessions dismisses inline editor", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    app._openCalloutEditor(0, "note");
+    app.backToSessions();
+    assert.equal(app._inlineEditor, null);
+});
+
+test("clicking empty space in chat area dismisses inline editor", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+    app.editMode = true;
+
+    app._openCalloutEditor(0, "note");
+    // Click on empty space (no element match)
+    app.handleChatAreaClick(makeClickEvent(100, 100, null));
+    assert.equal(app._inlineEditor, null);
+});
+
+test("clicks inside inline editor do not trigger context menu", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    // Simulate click where closest(".inline-editor") returns truthy
+    var evt = {
+        clientX: 100,
+        clientY: 100,
+        stopPropagation: function () {},
+        target: {
+            closest: function (sel) {
+                if (sel === ".inline-editor") return {};
+                return null;
+            },
+        },
+    };
+    app.handleChatAreaClick(evt);
+    assert.equal(app._contextMenu, null, "no context menu should open");
+});
+
+test("callout multi-line content is preserved", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+
+    app._openCalloutEditor(0, "note");
+    app._inlineEditor.textarea.value = "Line 1\nLine 2\nLine 3";
+    app._saveCallout();
+
+    var callouts = ClawbackAnnotations.getCallouts();
+    assert.equal(callouts[0].content, "Line 1\nLine 2\nLine 3");
+});
+
+test("artifact description is optional", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+
+    app._openArtifactEditor(0);
+    app._inlineEditor.titleInput.value = "No Desc";
+    app._inlineEditor.descInput.value = "";
+    app._inlineEditor.textarea.value = "content here";
+    app._saveArtifact();
+
+    var artifacts = ClawbackAnnotations.getArtifacts();
+    var found = artifacts.find(function (a) { return a.title === "No Desc"; });
+    assert.ok(found, "artifact should be created");
+    assert.equal(found.description, "");
+});
+
+test("unique IDs are generated for callouts", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+
+    app._openCalloutEditor(0, "note");
+    app._inlineEditor.textarea.value = "First";
+    app._saveCallout();
+
+    app._openCalloutEditor(0, "note");
+    app._inlineEditor.textarea.value = "Second";
+    app._saveCallout();
+
+    var callouts = ClawbackAnnotations.getCallouts();
+    assert.notEqual(callouts[0].id, callouts[1].id, "IDs should be unique");
+    assert.ok(callouts[0].id.startsWith("cal-"), "should have cal- prefix");
+    assert.ok(callouts[1].id.startsWith("cal-"), "should have cal- prefix");
+});
+
+test("unique IDs are generated for artifacts", function () {
+    const app = makeApp(5);
+    var chatArea = makeMockChatArea();
+    addBeatToChatArea(chatArea, 0, "bubble");
+    app.$refs.chatArea = chatArea;
+
+    ClawbackAnnotations.init({ sections: [], callouts: [], artifacts: [] });
+
+    app._openArtifactEditor(0);
+    app._inlineEditor.titleInput.value = "First";
+    app._inlineEditor.textarea.value = "content";
+    app._saveArtifact();
+
+    app._openArtifactEditor(0);
+    app._inlineEditor.titleInput.value = "Second";
+    app._inlineEditor.textarea.value = "content";
+    app._saveArtifact();
+
+    var artifacts = ClawbackAnnotations.getArtifacts();
+    assert.notEqual(artifacts[0].id, artifacts[1].id, "IDs should be unique");
+    assert.ok(artifacts[0].id.startsWith("art-"), "should have art- prefix");
+    assert.ok(artifacts[1].id.startsWith("art-"), "should have art- prefix");
 });
 
 // ---------------------------------------------------------------------------
