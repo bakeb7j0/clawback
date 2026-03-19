@@ -55,11 +55,9 @@ docker compose up  # then edit docker-compose.yml to uncomment CLAWBACK_SECRET
 CLAWBACK_SECRET=my-secret make run
 ```
 
-Provide the secret via query parameter or header:
+When a secret is configured, unauthenticated browser requests redirect to a login page. Enter the secret once and a cookie keeps you logged in for the session.
 
-```
-http://localhost:8080/?secret=my-secret
-```
+For API consumers, pass the secret via header:
 
 ```bash
 curl -H "X-Clawback-Secret: my-secret" http://localhost:8080/api/sessions
