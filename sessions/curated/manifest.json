@@ -5,7 +5,8 @@
         "description": "A sample conversation where Claude reads and runs a Python file, then reviews a config.",
         "file": "demo-session.jsonl",
         "beat_count": 12,
-        "tags": ["tools", "code-review"]
+        "tags": ["tools", "code-review"],
+        "debug": true
     },
     {
         "id": "debugging-session",
@@ -13,7 +14,8 @@
         "description": "Watch a systematic debugging workflow — from symptom to root cause to fix, investigating a null-value bug in a profile update endpoint.",
         "file": "debugging-session.jsonl",
         "beat_count": 16,
-        "tags": ["debugging", "bug-fix", "api"]
+        "tags": ["debugging", "bug-fix", "api"],
+        "debug": true
     },
     {
         "id": "creating-clawback",

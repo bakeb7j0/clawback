@@ -16,7 +16,7 @@ FIXTURE_JSONL = os.path.join(FIXTURE_DIR, "integration-session.jsonl")
 @pytest.fixture(scope="session")
 def _app():
     """Create a Flask application for testing."""
-    return create_app({"TESTING": True})
+    return create_app({"TESTING": True, "DEBUG": True})
 
 
 @pytest.fixture(scope="session")

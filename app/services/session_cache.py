@@ -22,8 +22,12 @@ class SessionCache:
         self._manifest = []
         self._parsed = {}
 
-    def load(self, sessions_dir=None):
-        """Parse all curated sessions from disk into memory."""
+    def load(self, sessions_dir=None, debug=False):
+        """Parse all curated sessions from disk into memory.
+
+        When debug is False, sessions with "debug": true in the manifest
+        are excluded from the listing and not parsed.
+        """
         sessions_dir = Path(sessions_dir) if sessions_dir else _SESSIONS_DIR
         manifest_path = sessions_dir / "manifest.json"
 
@@ -37,6 +41,9 @@ class SessionCache:
         if not isinstance(manifest, list):
             logger.warning("Manifest is not a list, skipping")
             return
+
+        if not debug:
+            manifest = [e for e in manifest if not e.get("debug")]
 
         self._manifest = manifest
 

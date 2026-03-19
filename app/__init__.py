@@ -17,7 +17,10 @@ def create_app(config=None):
 
     # Pre-parse curated sessions at startup
     cache = SessionCache()
-    cache.load(config.get("SESSIONS_DIR") if config else None)
+    cache.load(
+        sessions_dir=config.get("SESSIONS_DIR") if config else None,
+        debug=app.config.get("DEBUG", False),
+    )
     app.session_cache = cache
 
     from app.routes import register_blueprints

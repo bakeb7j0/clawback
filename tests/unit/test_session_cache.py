@@ -16,16 +16,24 @@ CURATED_DIR = os.path.join(
 
 @pytest.fixture()
 def cache():
-    """A SessionCache loaded from the real curated sessions directory."""
+    """A SessionCache loaded with debug=True (all sessions visible)."""
     c = SessionCache()
-    c.load(CURATED_DIR)
+    c.load(CURATED_DIR, debug=True)
+    return c
+
+
+@pytest.fixture()
+def prod_cache():
+    """A SessionCache loaded with debug=False (debug sessions hidden)."""
+    c = SessionCache()
+    c.load(CURATED_DIR, debug=False)
     return c
 
 
 def test_load_populates_manifest(cache):
-    """Loading populates the manifest list."""
+    """Loading with debug=True shows all sessions."""
     sessions = cache.list_sessions()
-    assert len(sessions) >= 2
+    assert len(sessions) >= 3
 
 
 def test_manifest_entries_have_required_fields(cache):
@@ -57,6 +65,21 @@ def test_get_session_debugging(cache):
 def test_get_session_unknown_returns_none(cache):
     """get_session returns None for an unknown session ID."""
     assert cache.get_session("nonexistent") is None
+
+
+def test_debug_sessions_hidden_in_prod(prod_cache):
+    """Debug sessions are excluded when debug=False."""
+    sessions = prod_cache.list_sessions()
+    ids = [s["id"] for s in sessions]
+    assert "demo-session" not in ids
+    assert "debugging-session" not in ids
+    assert "creating-clawback" in ids
+
+
+def test_debug_sessions_not_parsed_in_prod(prod_cache):
+    """Debug sessions are not parsed when debug=False."""
+    assert prod_cache.get_session("demo-session") is None
+    assert prod_cache.get_session("debugging-session") is None
 
 
 def test_empty_cache():
