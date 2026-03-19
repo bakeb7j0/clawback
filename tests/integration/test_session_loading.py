@@ -12,11 +12,11 @@ FIXTURE_JSONL = os.path.join(
 def test_picker_shows_curated_sessions(loaded_page):
     """Session picker displays curated session cards from the manifest."""
     page = loaded_page
+    # 1 curated session card + 1 "Add Session" card
     cards = page.locator(".picker__card")
-    expect(cards).to_have_count(3)
-    expect(cards.first.locator(".picker__card-title")).to_have_text("Demo: File Review")
-    expect(cards.nth(1).locator(".picker__card-title")).to_have_text(
-        "Debugging: API 500 Errors"
+    expect(cards).to_have_count(2)
+    expect(cards.first.locator(".picker__card-title")).to_have_text(
+        "Integration Test Session"
     )
     expect(cards.first.locator(".picker__card-meta")).to_contain_text("beats")
 
@@ -27,13 +27,13 @@ def test_curated_session_loads_playback(loaded_page):
     page.locator(".picker__card").first.click()
     expect(page.locator(".toolbar")).to_be_visible()
     expect(page.locator(".app-subtitle")).to_be_visible()
-    expect(page.locator(".toolbar__progress")).to_contain_text("/ 12")
+    expect(page.locator(".toolbar__progress")).to_contain_text("/ 10")
 
 
 def test_file_upload_loads_playback(loaded_page):
     """Uploading a JSONL file via file input transitions to playback view."""
     page = loaded_page
-    page.set_input_files('input[type="file"]', FIXTURE_JSONL)
+    page.locator('.picker__upload-zone input[type="file"]').set_input_files(FIXTURE_JSONL)
     expect(page.locator(".toolbar")).to_be_visible()
     expect(page.locator(".toolbar__progress")).to_contain_text("/ 10")
 
