@@ -48,6 +48,11 @@ global.ClawbackScroller = {
 
 const { ClawbackAnnotations, ANNOTATION_COLORS } = require("../../../app/static/js/annotations.js");
 global.ClawbackAnnotations = ClawbackAnnotations;
+global.ANNOTATION_COLORS = ANNOTATION_COLORS;
+
+// Mock save to prevent actual HTTP calls
+var saveCalls = 0;
+ClawbackAnnotations.save = function () { saveCalls++; return Promise.resolve(); };
 
 const { clawbackApp } = require("../../../app/static/js/app.js");
 
@@ -1286,6 +1291,242 @@ test("_showEditToast sets a timeout handle for auto-clear", function () {
     assert.notEqual(app._editToastTimeout, null, "timeout should be set");
     // Clean up timeout to prevent interference
     clearTimeout(app._editToastTimeout);
+});
+
+// ---------------------------------------------------------------------------
+// Section creation — form and pending section
+// ---------------------------------------------------------------------------
+console.log("\nsection creation — form and pending section");
+
+test("_sectionForm and _pendingSection default to null", function () {
+    const app = makeApp(5);
+    assert.equal(app._sectionForm, null);
+    assert.equal(app._pendingSection, null);
+});
+
+test("handleContextMenuAction start-section opens form", function () {
+    const app = makeApp(5);
+    app._contextMenu = { beatId: "3", isAnnotation: false, items: [], x: 0, y: 0 };
+    app.handleContextMenuAction("start-section");
+    assert.notEqual(app._sectionForm, null);
+    assert.equal(app._sectionForm.beatId, 3);
+    assert.equal(app._sectionForm.label, "");
+    assert.equal(app._sectionForm.color, "blue");
+    assert.equal(app._contextMenu, null, "menu should be dismissed");
+});
+
+test("submitSectionForm enters pending section mode", function () {
+    const app = makeApp(5);
+    app._sectionForm = { beatId: 2, label: "Intro", color: "green" };
+    app.submitSectionForm();
+    assert.equal(app._sectionForm, null, "form should be cleared");
+    assert.notEqual(app._pendingSection, null);
+    assert.equal(app._pendingSection.startBeat, 2);
+    assert.equal(app._pendingSection.label, "Intro");
+    assert.equal(app._pendingSection.color, "green");
+});
+
+test("submitSectionForm trims label whitespace", function () {
+    const app = makeApp(5);
+    app._sectionForm = { beatId: 0, label: "  Trimmed  ", color: "blue" };
+    app.submitSectionForm();
+    assert.equal(app._pendingSection.label, "Trimmed");
+});
+
+test("submitSectionForm blocks empty label", function () {
+    const app = makeApp(5);
+    app._sectionForm = { beatId: 0, label: "   ", color: "blue" };
+    app.submitSectionForm();
+    assert.notEqual(app._sectionForm, null, "form should remain open");
+    assert.equal(app._pendingSection, null, "should not enter pending mode");
+});
+
+test("cancelSectionForm clears form", function () {
+    const app = makeApp(5);
+    app._sectionForm = { beatId: 0, label: "Test", color: "blue" };
+    app.cancelSectionForm();
+    assert.equal(app._sectionForm, null);
+});
+
+test("cancelPendingSection clears pending section", function () {
+    const app = makeApp(5);
+    app._pendingSection = { startBeat: 0, label: "Test", color: "blue" };
+    app.cancelPendingSection();
+    assert.equal(app._pendingSection, null);
+});
+
+test("Escape cancels section form", function () {
+    const app = makeApp(5);
+    app._sectionForm = { beatId: 0, label: "Test", color: "blue" };
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._sectionForm, null);
+});
+
+test("Escape cancels pending section", function () {
+    const app = makeApp(5);
+    app._pendingSection = { startBeat: 0, label: "Test", color: "blue" };
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._pendingSection, null);
+});
+
+test("Escape priority: form > pending > context menu > artifact", function () {
+    const app = makeApp(5);
+    app.$refs.artifactPanelContent = { innerHTML: "" };
+    app._sectionForm = { beatId: 0, label: "T", color: "blue" };
+    app._pendingSection = { startBeat: 0, label: "T", color: "blue" };
+    app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
+    app.artifactOpen = true;
+
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._sectionForm, null, "form dismissed first");
+    assert.notEqual(app._pendingSection, null, "pending still active");
+
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._pendingSection, null, "pending dismissed second");
+    assert.notEqual(app._contextMenu, null, "context menu still active");
+
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app._contextMenu, null, "context menu dismissed third");
+    assert.equal(app.artifactOpen, true, "artifact still open");
+
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app.artifactOpen, false, "artifact dismissed last");
+});
+
+test("Escape works from INPUT elements for form dismissal", function () {
+    const app = makeApp(5);
+    app._sectionForm = { beatId: 0, label: "T", color: "blue" };
+    var evt = makeKeyEvent("Escape", { target: { tagName: "INPUT" } });
+    app.handleKeydown(evt);
+    assert.equal(app._sectionForm, null, "form should be dismissed even from input");
+});
+
+// ---------------------------------------------------------------------------
+// Section creation — completing via second beat click
+// ---------------------------------------------------------------------------
+console.log("\nsection creation — completing via second beat click");
+
+test("clicking a beat in pending mode creates a section", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test");
+    app._engine.skipToEnd();
+    app.editMode = true;
+    app._pendingSection = { startBeat: 1, label: "My Section", color: "green" };
+    saveCalls = 0;
+
+    var el = makeMockElement(4, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+
+    assert.equal(app._pendingSection, null, "pending should be cleared");
+    // Section should exist in annotations
+    var sections = ClawbackAnnotations.getSections();
+    var found = sections.find(function (s) { return s.label === "My Section"; });
+    assert.ok(found, "section should exist in annotations");
+    assert.equal(found.start_beat, 1);
+    assert.equal(found.end_beat, 4);
+    assert.equal(found.color, "green");
+    assert.ok(saveCalls > 0, "save should be called");
+});
+
+test("section auto-swaps when end < start", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test");
+    app._engine.skipToEnd();
+    app.editMode = true;
+    app._pendingSection = { startBeat: 5, label: "Reversed", color: "blue" };
+
+    var el = makeMockElement(2, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+
+    var sections = ClawbackAnnotations.getSections();
+    var found = sections.find(function (s) { return s.label === "Reversed"; });
+    assert.ok(found, "section should exist");
+    assert.equal(found.start_beat, 2, "start should be the smaller value");
+    assert.equal(found.end_beat, 5, "end should be the larger value");
+});
+
+test("section creation updates sidebar and progress bar", function () {
+    const app = makeApp();
+    app.startPlayback(makeBeats(8), "Test");
+    app._engine.skipToEnd();
+    app.editMode = true;
+    assert.equal(app.showSections, false);
+    assert.equal(app.sectionList.length, 0);
+
+    app._pendingSection = { startBeat: 0, label: "New", color: "blue" };
+    var el = makeMockElement(3, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+
+    assert.equal(app.showSections, true, "sidebar should be shown");
+    assert.ok(app.sectionList.length > 0, "sectionList should have entries");
+    assert.ok(app.progressSegments.length > 1, "progress should have segments");
+});
+
+test("pending mode ignores clicks on non-bubble elements", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._pendingSection = { startBeat: 0, label: "Test", color: "blue" };
+    // Click with no target
+    app.handleChatAreaClick(makeClickEvent(100, 100, null));
+    assert.notEqual(app._pendingSection, null, "pending should remain");
+});
+
+test("pending mode shows toast when playback is PLAYING", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    app._pendingSection = { startBeat: 0, label: "Test", color: "blue" };
+    app.playbackState = "PLAYING";
+    var el = makeMockElement(3, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+    assert.notEqual(app._pendingSection, null, "pending should remain");
+    assert.equal(app.editToast, "Pause playback to edit");
+});
+
+test("save failure calls catch handler (save is invoked)", function () {
+    const app = makeApp(5);
+    app.editMode = true;
+    var saveCalled = false;
+    var origSave = ClawbackAnnotations.save;
+    ClawbackAnnotations.save = function () { saveCalled = true; return Promise.reject(new Error("fail")); };
+
+    app._pendingSection = { startBeat: 0, label: "Fail Test", color: "blue" };
+    var el = makeMockElement(3, "bubble");
+    app.handleChatAreaClick(makeClickEvent(100, 100, el));
+
+    assert.ok(saveCalled, "save should have been called");
+    assert.equal(app._pendingSection, null, "pending should be cleared");
+    ClawbackAnnotations.save = origSave;
+});
+
+test("backToSessions resets section form and pending state", function () {
+    const app = makeApp(5);
+    app._sectionForm = { beatId: 0, label: "T", color: "blue" };
+    app._pendingSection = { startBeat: 0, label: "T", color: "blue" };
+    app.backToSessions();
+    assert.equal(app._sectionForm, null);
+    assert.equal(app._pendingSection, null);
+});
+
+// ---------------------------------------------------------------------------
+// getColorPalette
+// ---------------------------------------------------------------------------
+console.log("\ngetColorPalette");
+
+test("returns array of color objects with key and hex", function () {
+    const app = makeApp(5);
+    var palette = app.getColorPalette();
+    assert.ok(palette.length > 0, "palette should not be empty");
+    assert.equal(palette[0].key, "blue");
+    assert.equal(palette[0].hex, ANNOTATION_COLORS.blue);
+});
+
+test("palette includes all ANNOTATION_COLORS keys", function () {
+    const app = makeApp(5);
+    var palette = app.getColorPalette();
+    var keys = palette.map(function (c) { return c.key; });
+    Object.keys(ANNOTATION_COLORS).forEach(function (k) {
+        assert.ok(keys.indexOf(k) !== -1, "should include " + k);
+    });
 });
 
 // ---------------------------------------------------------------------------
