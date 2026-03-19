@@ -149,6 +149,41 @@ class PlaybackEngine {
     }
 
     /**
+     * Jump to a specific beat index, rendering or removing beats as needed.
+     * Pauses playback. After calling, currentIndex === targetIndex.
+     * @param {number} targetIndex - The desired currentIndex (0 = none rendered, beats.length = all rendered)
+     */
+    jumpToBeat(targetIndex) {
+        if (targetIndex < 0) targetIndex = 0;
+        if (targetIndex > this.beats.length) targetIndex = this.beats.length;
+        if (targetIndex === this.currentIndex) return;
+
+        this._clearTimer();
+        this._remainingFraction = null;
+
+        if (targetIndex > this.currentIndex) {
+            while (this.currentIndex < targetIndex) {
+                this._renderCurrentBeat();
+            }
+        } else {
+            while (this.currentIndex > targetIndex) {
+                this.currentIndex--;
+                if (this.onRemoveBeat) {
+                    this.onRemoveBeat(this.beats[this.currentIndex]);
+                }
+            }
+        }
+
+        if (this.currentIndex >= this.beats.length) {
+            this._setState(PlaybackState.COMPLETE);
+        } else if (this.currentIndex === 0) {
+            this._setState(PlaybackState.READY);
+        } else {
+            this._setState(PlaybackState.PAUSED);
+        }
+    }
+
+    /**
      * Set the speed multiplier. Recalculates remaining wait if playing.
      * @param {number} multiplier - e.g. 0.5, 1.0, 1.5, 2.0
      */

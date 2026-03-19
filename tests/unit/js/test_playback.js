@@ -751,6 +751,98 @@ test("previous from PLAYING pauses and allows replay", () => {
 });
 
 // ---------------------------------------------------------------------------
+// jumpToBeat()
+// ---------------------------------------------------------------------------
+console.log("\njumpToBeat()");
+
+test("forward jump renders all beats up to target", () => {
+    const rendered = [];
+    const engine = new PlaybackEngine({
+        beats: [makeBeat(0), makeBeat(1), makeBeat(2), makeBeat(3), makeBeat(4)],
+        onBeat: (beat) => rendered.push(beat),
+    });
+    engine.jumpToBeat(3);
+    assert.equal(rendered.length, 3);
+    assert.deepEqual(rendered.map((b) => b.id), [0, 1, 2]);
+    assert.equal(engine.currentIndex, 3);
+    assert.equal(engine.state, PlaybackState.PAUSED);
+});
+
+test("backward jump removes beats down to target", () => {
+    const removed = [];
+    const engine = new PlaybackEngine({
+        beats: [makeBeat(0), makeBeat(1), makeBeat(2), makeBeat(3)],
+        onRemoveBeat: (beat) => removed.push(beat),
+    });
+    engine.skipToEnd();
+    engine.jumpToBeat(1);
+    assert.deepEqual(removed.map((b) => b.id), [3, 2, 1]);
+    assert.equal(engine.currentIndex, 1);
+    assert.equal(engine.state, PlaybackState.PAUSED);
+});
+
+test("jump to 0 transitions to READY", () => {
+    const engine = new PlaybackEngine({
+        beats: [makeBeat(0), makeBeat(1)],
+    });
+    engine.skipToEnd();
+    engine.jumpToBeat(0);
+    assert.equal(engine.currentIndex, 0);
+    assert.equal(engine.state, PlaybackState.READY);
+});
+
+test("jump to beats.length transitions to COMPLETE", () => {
+    const engine = new PlaybackEngine({
+        beats: [makeBeat(0), makeBeat(1)],
+    });
+    engine.jumpToBeat(2);
+    assert.equal(engine.currentIndex, 2);
+    assert.equal(engine.state, PlaybackState.COMPLETE);
+});
+
+test("jump to same index is a no-op", () => {
+    const rendered = [];
+    const engine = new PlaybackEngine({
+        beats: [makeBeat(0), makeBeat(1)],
+        onBeat: (beat) => rendered.push(beat),
+    });
+    engine.next();
+    assert.equal(rendered.length, 1);
+    engine.jumpToBeat(1);
+    assert.equal(rendered.length, 1, "no additional beats rendered");
+});
+
+test("clamps negative target to 0", () => {
+    const engine = new PlaybackEngine({
+        beats: [makeBeat(0), makeBeat(1)],
+    });
+    engine.next();
+    engine.jumpToBeat(-5);
+    assert.equal(engine.currentIndex, 0);
+    assert.equal(engine.state, PlaybackState.READY);
+});
+
+test("clamps target beyond length to beats.length", () => {
+    const engine = new PlaybackEngine({
+        beats: [makeBeat(0), makeBeat(1)],
+    });
+    engine.jumpToBeat(999);
+    assert.equal(engine.currentIndex, 2);
+    assert.equal(engine.state, PlaybackState.COMPLETE);
+});
+
+test("pauses playback when jumping during PLAYING", () => {
+    const engine = new PlaybackEngine({
+        beats: [makeBeat(0), makeBeat(1), makeBeat(2), makeBeat(3)],
+    });
+    engine.play();
+    assert.equal(engine.state, PlaybackState.PLAYING);
+    engine.jumpToBeat(3);
+    assert.equal(engine.state, PlaybackState.PAUSED);
+    assert.equal(engine._timer, null, "timer should be cleared");
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);

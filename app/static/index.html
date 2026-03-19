@@ -31,74 +31,98 @@
         <span class="app-subtitle" x-show="sessionName" x-text="sessionName"></span>
     </header>
 
-    <main class="app-main">
-        <!-- Session picker -->
-        <div x-show="view === 'picker'">
-            <!-- Loading sessions list -->
-            <div class="picker__loading" x-show="loadingSessions">
-                <div class="spinner"></div>
-                <p>Loading sessions&#8230;</p>
+    <div class="app-body">
+        <!-- Section sidebar -->
+        <aside class="section-sidebar"
+               x-show="view === 'playback' && showSections"
+               x-transition.opacity.duration.200ms
+               x-cloak>
+            <div class="section-sidebar__header">
+                <span class="section-sidebar__title">Sections</span>
             </div>
-
-            <!-- Loading a specific session -->
-            <div class="picker__loading" x-show="loadingSession && !loadingSessions">
-                <div class="spinner"></div>
-                <p>Loading session&#8230;</p>
-            </div>
-
-            <!-- Session picker content -->
-            <div class="picker" x-show="!loadingSessions && !loadingSession">
-                <!-- Session grid -->
-                <div class="picker__grid" x-show="sessions.length > 0">
-                    <template x-for="session in sessions" :key="session.id">
-                        <div class="picker__card" @click="loadSession(session)">
-                            <h3 class="picker__card-title" x-text="session.title"></h3>
-                            <p class="picker__card-desc" x-text="session.description"></p>
-                            <span class="picker__card-meta" x-text="session.beat_count + ' beats'"></span>
-                        </div>
-                    </template>
-                </div>
-
-                <p class="picker__empty" x-show="sessions.length === 0">
-                    No curated sessions available.
-                </p>
-
-                <!-- Upload area -->
-                <div class="picker__upload">
-                    <h3 class="picker__upload-title">Upload your own session</h3>
-                    <div class="picker__upload-zone"
-                         @dragover.prevent="$el.classList.add('picker__upload-zone--active')"
-                         @dragleave="$el.classList.remove('picker__upload-zone--active')"
-                         @drop.prevent="$el.classList.remove('picker__upload-zone--active'); handleFileDrop($event)">
-                        <p>Drop a <code>.jsonl</code> file here, or</p>
-                        <label class="picker__upload-btn">
-                            Browse files
-                            <input type="file" accept=".jsonl" @change="handleFileUpload($event)" hidden>
-                        </label>
+            <div class="section-sidebar__list">
+                <template x-for="section in sectionList" :key="section.id">
+                    <div class="section-sidebar__item"
+                         :class="{ 'section-sidebar__item--active': activeSection && activeSection.id === section.id }"
+                         @click="jumpToSection(section)"
+                         :style="'border-left-color:' + getSectionColor(section.color)">
+                        <span class="section-sidebar__label" x-text="section.label"></span>
+                        <span class="section-sidebar__range"
+                              x-text="'Beats ' + (section.start_beat + 1) + '\u2013' + (section.end_beat + 1)"></span>
                     </div>
-                    <p class="picker__error" x-show="uploadError" x-text="uploadError"></p>
+                </template>
+            </div>
+        </aside>
+
+        <main class="app-main">
+            <!-- Session picker -->
+            <div x-show="view === 'picker'">
+                <!-- Loading sessions list -->
+                <div class="picker__loading" x-show="loadingSessions">
+                    <div class="spinner"></div>
+                    <p>Loading sessions&#8230;</p>
+                </div>
+
+                <!-- Loading a specific session -->
+                <div class="picker__loading" x-show="loadingSession && !loadingSessions">
+                    <div class="spinner"></div>
+                    <p>Loading session&#8230;</p>
+                </div>
+
+                <!-- Session picker content -->
+                <div class="picker" x-show="!loadingSessions && !loadingSession">
+                    <!-- Session grid -->
+                    <div class="picker__grid" x-show="sessions.length > 0">
+                        <template x-for="session in sessions" :key="session.id">
+                            <div class="picker__card" @click="loadSession(session)">
+                                <h3 class="picker__card-title" x-text="session.title"></h3>
+                                <p class="picker__card-desc" x-text="session.description"></p>
+                                <span class="picker__card-meta" x-text="session.beat_count + ' beats'"></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <p class="picker__empty" x-show="sessions.length === 0">
+                        No curated sessions available.
+                    </p>
+
+                    <!-- Upload area -->
+                    <div class="picker__upload">
+                        <h3 class="picker__upload-title">Upload your own session</h3>
+                        <div class="picker__upload-zone"
+                             @dragover.prevent="$el.classList.add('picker__upload-zone--active')"
+                             @dragleave="$el.classList.remove('picker__upload-zone--active')"
+                             @drop.prevent="$el.classList.remove('picker__upload-zone--active'); handleFileDrop($event)">
+                            <p>Drop a <code>.jsonl</code> file here, or</p>
+                            <label class="picker__upload-btn">
+                                Browse files
+                                <input type="file" accept=".jsonl" @change="handleFileUpload($event)" hidden>
+                            </label>
+                        </div>
+                        <p class="picker__error" x-show="uploadError" x-text="uploadError"></p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Playback view -->
-        <div class="chat-area"
-             x-ref="chatArea"
-             x-show="view === 'playback'"
-             :class="{ 'chat-area--show-meta': showBeatNumbers }">
-        </div>
-    </main>
+            <!-- Playback view -->
+            <div class="chat-area"
+                 x-ref="chatArea"
+                 x-show="view === 'playback'"
+                 :class="{ 'chat-area--show-meta': showBeatNumbers }">
+            </div>
+        </main>
+    </div>
 
     <!-- Playback toolbar -->
     <div class="toolbar" x-show="view === 'playback'" x-cloak>
         <!-- Transport controls -->
         <div class="toolbar__group">
-            <button class="toolbar__btn" @click="skipToStart()" :disabled="playbackState === 'READY'" title="Skip to start">⏮</button>
-            <button class="toolbar__btn" @click="previousBeat()" :disabled="currentBeat === 0" title="Previous beat">⏪</button>
+            <button class="toolbar__btn" @click="skipToStart()" :disabled="playbackState === 'READY'" title="Skip to start">&#9198;</button>
+            <button class="toolbar__btn" @click="previousBeat()" :disabled="currentBeat === 0" title="Previous beat">&#9194;</button>
             <button class="toolbar__btn toolbar__btn--play" @click="togglePlay()" title="Play/Pause"
-                    x-text="playbackState === 'PLAYING' ? '⏸' : '▶'">▶</button>
-            <button class="toolbar__btn" @click="nextBeat()" :disabled="playbackState === 'COMPLETE'" title="Next beat">⏩</button>
-            <button class="toolbar__btn" @click="skipToEnd()" :disabled="playbackState === 'COMPLETE'" title="Skip to end">⏭</button>
+                    x-text="playbackState === 'PLAYING' ? '&#9208;' : '&#9654;'">&#9654;</button>
+            <button class="toolbar__btn" @click="nextBeat()" :disabled="playbackState === 'COMPLETE'" title="Next beat">&#9193;</button>
+            <button class="toolbar__btn" @click="skipToEnd()" :disabled="playbackState === 'COMPLETE'" title="Skip to end">&#9197;</button>
         </div>
 
         <div class="toolbar__separator"></div>
@@ -120,10 +144,30 @@
             <button class="toolbar__btn toolbar__btn--iw" :class="{ 'toolbar__btn--active': innerWorkingsMode === 'expanded' }" @click="setInnerWorkingsMode('expanded')">Expanded</button>
         </div>
 
+        <div class="toolbar__separator" x-show="sectionList.length > 0"></div>
+
+        <!-- Sections toggle -->
+        <div class="toolbar__group" x-show="sectionList.length > 0">
+            <button class="toolbar__btn toolbar__btn--iw"
+                    :class="{ 'toolbar__btn--active': showSections }"
+                    @click="toggleSections()"
+                    title="Toggle section sidebar">&#9776; Sections</button>
+        </div>
+
         <div class="toolbar__separator"></div>
 
-        <!-- Progress indicator -->
-        <div class="toolbar__group">
+        <!-- Progress bar and beat counter -->
+        <div class="toolbar__group toolbar__group--progress">
+            <div class="toolbar__bar">
+                <div class="toolbar__bar-segments">
+                    <template x-for="(seg, i) in progressSegments" :key="i">
+                        <div class="toolbar__bar-seg"
+                             :style="'flex:' + seg.width + ';background-color:' + (seg.color || 'var(--color-border)')"></div>
+                    </template>
+                </div>
+                <div class="toolbar__bar-fill"
+                     :style="'width:' + (totalBeats > 0 ? (currentBeat / totalBeats * 100) : 0) + '%'"></div>
+            </div>
             <span class="toolbar__progress" x-text="'Beat ' + currentBeat + ' / ' + totalBeats"></span>
         </div>
     </div>
