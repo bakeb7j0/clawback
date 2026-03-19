@@ -30,6 +30,10 @@ function renderBeat(beat, container) {
         return _renderCalloutBeat(beat, container);
     }
 
+    if (beat.type === "artifact") {
+        return _renderArtifactBeat(beat, container);
+    }
+
     if (beat.category === "inner_working" && beat.group_id !== null) {
         return _renderInnerWorkingBeat(beat, container);
     }
@@ -110,6 +114,71 @@ function toggleAllInnerWorkings(_container, expanded) {
 function resetGroups() {
     _activeGroups.clear();
     _defaultExpanded = false;
+}
+
+/**
+ * Renders artifact content into a panel content element.
+ *
+ * @param {Object} artifact - Artifact data with content_type and content
+ * @param {HTMLElement} contentEl - Panel content container
+ */
+function renderArtifactPanel(artifact, contentEl) {
+    contentEl.innerHTML = "";
+    if (artifact.contentType === "code") {
+        var pre = document.createElement("pre");
+        var code = document.createElement("code");
+        code.textContent = artifact.artifactContent || "";
+        pre.appendChild(code);
+        contentEl.appendChild(pre);
+        hljs.highlightElement(code);
+    } else {
+        contentEl.innerHTML = DOMPurify.sanitize(
+            marked.parse(artifact.artifactContent || "")
+        );
+        contentEl.querySelectorAll("pre code").forEach(function (block) {
+            hljs.highlightElement(block);
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Internal — artifact card rendering
+// ---------------------------------------------------------------------------
+
+function _renderArtifactBeat(beat, container) {
+    var card = document.createElement("div");
+    card.classList.add("artifact-card");
+    card.dataset.beatId = String(beat.id);
+
+    var icon = document.createElement("span");
+    icon.classList.add("artifact-card__icon");
+    icon.textContent = "\uD83D\uDCC4";
+
+    var body = document.createElement("div");
+    body.classList.add("artifact-card__body");
+
+    var title = document.createElement("span");
+    title.classList.add("artifact-card__title");
+    title.textContent = beat.artifactTitle || "Artifact";
+
+    var desc = document.createElement("span");
+    desc.classList.add("artifact-card__desc");
+    desc.textContent = beat.artifactDescription || "";
+
+    body.appendChild(title);
+    if (beat.artifactDescription) {
+        body.appendChild(desc);
+    }
+
+    var prompt = document.createElement("span");
+    prompt.classList.add("artifact-card__prompt");
+    prompt.textContent = "Click to view \u25B6";
+
+    card.appendChild(icon);
+    card.appendChild(body);
+    card.appendChild(prompt);
+    container.appendChild(card);
+    return card;
 }
 
 // ---------------------------------------------------------------------------
@@ -351,6 +420,7 @@ if (typeof window !== "undefined") {
         removeBeat,
         toggleAllInnerWorkings,
         resetGroups,
+        renderArtifactPanel,
     };
 }
 
@@ -361,5 +431,6 @@ if (typeof module !== "undefined" && module.exports) {
         removeBeat,
         toggleAllInnerWorkings,
         resetGroups,
+        renderArtifactPanel,
     };
 }
