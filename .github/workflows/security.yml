@@ -79,6 +79,19 @@ jobs:
           sarif_file: trivy-image-results.sarif
           category: trivy-image
 
+  dockle:
+    name: Dockle (CIS Docker Benchmark)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: clawback:security-scan
+      - run: ./scripts/ci/run-dockle.sh
+
   gitleaks:
     name: Gitleaks (Secret detection)
     runs-on: ubuntu-latest
