@@ -22,17 +22,26 @@ def check_secret():
     if request.path in ("/health", "/login"):
         return None
 
-    provided = (
-        request.cookies.get("clawback_secret")
-        or request.headers.get("X-Clawback-Secret")
-    )
-    if provided and hmac.compare_digest(provided, secret):
+    provided = request.cookies.get("clawback_secret") or request.headers.get("X-Clawback-Secret")
+    if provided and _safe_compare(provided, secret):
         return None
 
     if request.path.startswith("/api/"):
         return _unauthorized_json()
 
     return redirect(url_for("views.login"))
+
+
+def _safe_compare(provided, secret):
+    """Compare strings using hmac.compare_digest, encoding to bytes first.
+
+    hmac.compare_digest raises TypeError for non-ASCII str arguments,
+    so we encode both sides to UTF-8 before comparison.
+    """
+    try:
+        return hmac.compare_digest(provided.encode("utf-8"), secret.encode("utf-8"))
+    except (UnicodeDecodeError, AttributeError):
+        return False
 
 
 def _unauthorized_json():
