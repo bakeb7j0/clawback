@@ -428,6 +428,20 @@ function clawbackApp() {
             }
         },
 
+        /** Increase speed by 0.5, capped at 4.0. */
+        increaseSpeed() {
+            if (this.speed < 4.0) {
+                this.setSpeed(Math.round((this.speed + 0.5) * 10) / 10);
+            }
+        },
+
+        /** Decrease speed by 0.5, floored at 0.5. */
+        decreaseSpeed() {
+            if (this.speed > 0.5) {
+                this.setSpeed(Math.round((this.speed - 0.5) * 10) / 10);
+            }
+        },
+
         /** Set inner workings display mode ("expanded" or "collapsed"). */
         setInnerWorkingsMode(mode) {
             this.innerWorkingsMode = mode;

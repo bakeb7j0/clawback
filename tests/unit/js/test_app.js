@@ -327,6 +327,71 @@ test("works without engine (before startPlayback)", function () {
 });
 
 // ---------------------------------------------------------------------------
+// increaseSpeed / decreaseSpeed
+// ---------------------------------------------------------------------------
+console.log("\nincreaseSpeed / decreaseSpeed");
+
+test("increaseSpeed increases by 0.5", function () {
+    const app = makeApp(5);
+    app.setSpeed(1.0);
+    app.increaseSpeed();
+    assert.equal(app.speed, 1.5);
+});
+
+test("increaseSpeed caps at 4.0", function () {
+    const app = makeApp(5);
+    app.setSpeed(4.0);
+    app.increaseSpeed();
+    assert.equal(app.speed, 4.0);
+});
+
+test("decreaseSpeed decreases by 0.5", function () {
+    const app = makeApp(5);
+    app.setSpeed(2.0);
+    app.decreaseSpeed();
+    assert.equal(app.speed, 1.5);
+});
+
+test("decreaseSpeed floors at 0.5", function () {
+    const app = makeApp(5);
+    app.setSpeed(0.5);
+    app.decreaseSpeed();
+    assert.equal(app.speed, 0.5);
+});
+
+test("increaseSpeed avoids floating point drift", function () {
+    const app = makeApp(5);
+    app.setSpeed(0.5);
+    app.increaseSpeed();
+    app.increaseSpeed();
+    app.increaseSpeed();
+    assert.equal(app.speed, 2.0);
+});
+
+test("increaseSpeed updates engine speed", function () {
+    const app = makeApp(5);
+    app.setSpeed(1.0);
+    app.increaseSpeed();
+    assert.equal(app._engine.speed, 1.5);
+});
+
+test("decreaseSpeed updates engine speed", function () {
+    const app = makeApp(5);
+    app.setSpeed(2.0);
+    app.decreaseSpeed();
+    assert.equal(app._engine.speed, 1.5);
+});
+
+test("decreaseSpeed avoids floating point drift", function () {
+    const app = makeApp(5);
+    app.setSpeed(2.0);
+    app.decreaseSpeed();
+    app.decreaseSpeed();
+    app.decreaseSpeed();
+    assert.equal(app.speed, 0.5);
+});
+
+// ---------------------------------------------------------------------------
 // setInnerWorkingsMode
 // ---------------------------------------------------------------------------
 console.log("\nsetInnerWorkingsMode");

@@ -107,11 +107,10 @@ def test_index_has_toolbar(client):
     assert "skipToEnd" in html, "skip-to-end button must be present"
     assert "nextBeat" in html, "next-beat button must be present"
     assert "previousBeat" in html, "previous-beat button must be present"
-    # Speed presets
-    assert "setSpeed(0.5)" in html, "0.5x speed button must be present"
-    assert "setSpeed(1)" in html, "1x speed button must be present"
-    assert "setSpeed(1.5)" in html, "1.5x speed button must be present"
-    assert "setSpeed(2)" in html, "2x speed button must be present"
+    # Speed stepper
+    assert "increaseSpeed()" in html, "speed increase button must be present"
+    assert "decreaseSpeed()" in html, "speed decrease button must be present"
+    assert "speed-stepper" in html, "speed stepper container must be present"
     # Inner workings toggle
     assert "setInnerWorkingsMode" in html, "inner workings toggle must be present"
     # Progress indicator
