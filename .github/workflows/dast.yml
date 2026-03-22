@@ -19,3 +19,18 @@ jobs:
         with:
           python-version: "3.12"
       - run: ./scripts/ci/run-fuzz.sh
+
+  zap:
+    name: ZAP (DAST baseline scan)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/ci/run-zap.sh
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: zap-results.sarif
+          category: zap
