@@ -843,6 +843,203 @@ test("pauses playback when jumping during PLAYING", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Collapsed inner workings group skipping
+// ---------------------------------------------------------------------------
+console.log("\nCollapsed inner workings group skipping");
+
+test("next skips entire collapsed inner workings group", () => {
+    var rendered = [];
+    var beats = [
+        makeBeat(0, { type: "user_message" }),
+        makeInnerBeat(1, { type: "thinking", group_id: 1 }),
+        makeInnerBeat(2, { type: "tool_call", group_id: 1 }),
+        makeInnerBeat(3, { type: "tool_result", group_id: 1 }),
+        makeBeat(4, { type: "assistant_message" }),
+    ];
+    var engine = new PlaybackEngine({
+        beats: beats,
+        onBeat: function (beat) { rendered.push(beat.id); },
+    });
+    engine.innerWorkingsMode = "collapsed";
+
+    engine.next(); // renders beat 0 (user)
+    assert.deepEqual(rendered, [0]);
+    assert.equal(engine.currentIndex, 1);
+
+    engine.next(); // should render beats 1, 2, 3 (entire group)
+    assert.deepEqual(rendered, [0, 1, 2, 3]);
+    assert.equal(engine.currentIndex, 4);
+});
+
+test("next does not skip when expanded", () => {
+    var rendered = [];
+    var beats = [
+        makeBeat(0, { type: "user_message" }),
+        makeInnerBeat(1, { type: "thinking", group_id: 1 }),
+        makeInnerBeat(2, { type: "tool_call", group_id: 1 }),
+        makeBeat(3, { type: "assistant_message" }),
+    ];
+    var engine = new PlaybackEngine({
+        beats: beats,
+        onBeat: function (beat) { rendered.push(beat.id); },
+    });
+    engine.innerWorkingsMode = "expanded";
+
+    engine.next();
+    assert.deepEqual(rendered, [0]);
+    engine.next();
+    assert.deepEqual(rendered, [0, 1]);
+    assert.equal(engine.currentIndex, 2);
+});
+
+test("previous skips entire collapsed inner workings group", () => {
+    var removed = [];
+    var beats = [
+        makeBeat(0, { type: "user_message" }),
+        makeInnerBeat(1, { type: "thinking", group_id: 1 }),
+        makeInnerBeat(2, { type: "tool_call", group_id: 1 }),
+        makeInnerBeat(3, { type: "tool_result", group_id: 1 }),
+        makeBeat(4, { type: "assistant_message" }),
+    ];
+    var engine = new PlaybackEngine({
+        beats: beats,
+        onRemoveBeat: function (beat) { removed.push(beat.id); },
+    });
+    engine.currentIndex = 5; // all rendered
+    engine.innerWorkingsMode = "collapsed";
+
+    engine.previous(); // removes beat 4 (assistant)
+    assert.deepEqual(removed, [4]);
+    assert.equal(engine.currentIndex, 4);
+
+    engine.previous(); // should remove beats 3, 2, 1 (entire group)
+    assert.deepEqual(removed, [4, 3, 2, 1]);
+    assert.equal(engine.currentIndex, 1);
+});
+
+test("previous does not skip when expanded", () => {
+    var removed = [];
+    var beats = [
+        makeBeat(0, { type: "user_message" }),
+        makeInnerBeat(1, { type: "thinking", group_id: 1 }),
+        makeInnerBeat(2, { type: "tool_call", group_id: 1 }),
+        makeBeat(3, { type: "assistant_message" }),
+    ];
+    var engine = new PlaybackEngine({
+        beats: beats,
+        onRemoveBeat: function (beat) { removed.push(beat.id); },
+    });
+    engine.currentIndex = 4;
+    engine.innerWorkingsMode = "expanded";
+
+    engine.previous();
+    assert.deepEqual(removed, [3]);
+    engine.previous();
+    assert.deepEqual(removed, [3, 2]);
+    assert.equal(engine.currentIndex, 2);
+});
+
+test("next skips group at end of beats", () => {
+    var rendered = [];
+    var beats = [
+        makeBeat(0, { type: "user_message" }),
+        makeInnerBeat(1, { type: "thinking", group_id: 1 }),
+        makeInnerBeat(2, { type: "tool_call", group_id: 1 }),
+    ];
+    var engine = new PlaybackEngine({
+        beats: beats,
+        onBeat: function (beat) { rendered.push(beat.id); },
+    });
+    engine.innerWorkingsMode = "collapsed";
+
+    engine.next(); // user
+    engine.next(); // should render entire group and reach COMPLETE
+    assert.deepEqual(rendered, [0, 1, 2]);
+    assert.equal(engine.currentIndex, 3);
+    assert.equal(engine.state, PlaybackState.COMPLETE);
+});
+
+test("previous skips group at start of beats", () => {
+    var removed = [];
+    var beats = [
+        makeInnerBeat(0, { type: "thinking", group_id: 1 }),
+        makeInnerBeat(1, { type: "tool_call", group_id: 1 }),
+        makeBeat(2, { type: "assistant_message" }),
+    ];
+    var engine = new PlaybackEngine({
+        beats: beats,
+        onRemoveBeat: function (beat) { removed.push(beat.id); },
+    });
+    engine.currentIndex = 3;
+    engine.innerWorkingsMode = "collapsed";
+
+    engine.previous(); // removes assistant
+    engine.previous(); // should remove entire group
+    assert.deepEqual(removed, [2, 1, 0]);
+    assert.equal(engine.currentIndex, 0);
+});
+
+test("next handles consecutive groups", () => {
+    var rendered = [];
+    var beats = [
+        makeBeat(0, { type: "user_message" }),
+        makeInnerBeat(1, { type: "thinking", group_id: 1 }),
+        makeInnerBeat(2, { type: "tool_call", group_id: 1 }),
+        makeInnerBeat(3, { type: "thinking", group_id: 2 }),
+        makeInnerBeat(4, { type: "tool_call", group_id: 2 }),
+        makeBeat(5, { type: "assistant_message" }),
+    ];
+    var engine = new PlaybackEngine({
+        beats: beats,
+        onBeat: function (beat) { rendered.push(beat.id); },
+    });
+    engine.innerWorkingsMode = "collapsed";
+
+    engine.next(); // user
+    assert.deepEqual(rendered, [0]);
+
+    engine.next(); // group 1
+    assert.deepEqual(rendered, [0, 1, 2]);
+    assert.equal(engine.currentIndex, 3);
+
+    engine.next(); // group 2
+    assert.deepEqual(rendered, [0, 1, 2, 3, 4]);
+    assert.equal(engine.currentIndex, 5);
+
+    engine.next(); // assistant
+    assert.deepEqual(rendered, [0, 1, 2, 3, 4, 5]);
+});
+
+test("next skips mid-group remainder when switching to collapsed", () => {
+    var rendered = [];
+    var beats = [
+        makeBeat(0, { type: "user_message" }),
+        makeInnerBeat(1, { type: "thinking", group_id: 1 }),
+        makeInnerBeat(2, { type: "tool_call", group_id: 1 }),
+        makeInnerBeat(3, { type: "tool_result", group_id: 1 }),
+        makeInnerBeat(4, { type: "tool_call", group_id: 1 }),
+        makeBeat(5, { type: "assistant_message" }),
+    ];
+    var engine = new PlaybackEngine({
+        beats: beats,
+        onBeat: function (beat) { rendered.push(beat.id); },
+    });
+    engine.innerWorkingsMode = "expanded";
+
+    engine.next(); // user
+    engine.next(); // thinking (expanded, one at a time)
+    engine.next(); // tool_call
+    assert.deepEqual(rendered, [0, 1, 2]);
+    assert.equal(engine.currentIndex, 3);
+
+    // Switch to collapsed mid-group
+    engine.innerWorkingsMode = "collapsed";
+    engine.next(); // should render beats 3 and 4 (remainder of group)
+    assert.deepEqual(rendered, [0, 1, 2, 3, 4]);
+    assert.equal(engine.currentIndex, 5);
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);

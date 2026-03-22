@@ -79,7 +79,8 @@ class PlaybackEngine {
         this._pauseInternal(PlaybackState.SCROLL_PAUSED);
     }
 
-    /** Immediately advance to the next beat. */
+    /** Immediately advance to the next beat.
+     *  When inner workings are collapsed, skips the entire group in one step. */
     next() {
         if (this.currentIndex >= this.beats.length) return;
         if (this.state === PlaybackState.COMPLETE) return;
@@ -87,17 +88,34 @@ class PlaybackEngine {
         this._clearTimer();
         this._remainingFraction = null;
 
-        const beatIndex = this.currentIndex;
+        var beatIndex = this.currentIndex;
         this._renderCurrentBeat();
+
+        // Skip remaining beats in a collapsed inner workings group
+        if (this.innerWorkingsMode === "collapsed") {
+            var renderedBeat = this.beats[beatIndex];
+            if (renderedBeat.category === "inner_working" && renderedBeat.group_id != null) {
+                while (this.currentIndex < this.beats.length) {
+                    var nextBeat = this.beats[this.currentIndex];
+                    if (nextBeat.group_id !== renderedBeat.group_id ||
+                        nextBeat.category !== "inner_working") break;
+                    this._renderCurrentBeat();
+                }
+            }
+        }
+
+        // Use last-rendered index for rescheduling (not the first in a skipped group)
+        var lastRenderedIndex = this.currentIndex - 1;
 
         if (this.currentIndex >= this.beats.length) {
             this._setState(PlaybackState.COMPLETE);
         } else if (this.state === PlaybackState.PLAYING) {
-            this._scheduleWait(beatIndex, 1.0);
+            this._scheduleWait(lastRenderedIndex, 1.0);
         }
     }
 
-    /** Remove the last rendered beat. */
+    /** Remove the last rendered beat.
+     *  When inner workings are collapsed, removes the entire group in one step. */
     previous() {
         if (this.currentIndex <= 0) return;
 
@@ -110,6 +128,20 @@ class PlaybackEngine {
         const beat = this.beats[this.currentIndex];
         if (this.onRemoveBeat) {
             this.onRemoveBeat(beat);
+        }
+
+        // Skip remaining beats in a collapsed inner workings group
+        if (this.innerWorkingsMode === "collapsed" &&
+            beat.category === "inner_working" && beat.group_id != null) {
+            while (this.currentIndex > 0) {
+                var prevBeat = this.beats[this.currentIndex - 1];
+                if (prevBeat.group_id !== beat.group_id ||
+                    prevBeat.category !== "inner_working") break;
+                this.currentIndex--;
+                if (this.onRemoveBeat) {
+                    this.onRemoveBeat(prevBeat);
+                }
+            }
         }
 
         if (
