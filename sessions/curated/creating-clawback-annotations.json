@@ -1,0 +1,265 @@
+{
+  "session_id": "creating-clawback",
+  "sections": [
+    {
+      "id": "sec-prd",
+      "label": "Product Requirements Document",
+      "start_beat": 0,
+      "end_beat": 134,
+      "color": "blue"
+    },
+    {
+      "id": "sec-planning",
+      "label": "Issue Planning",
+      "start_beat": 135,
+      "end_beat": 180,
+      "color": "purple"
+    },
+    {
+      "id": "sec-foundation",
+      "label": "Foundation: Skeleton & Parser",
+      "start_beat": 181,
+      "end_beat": 460,
+      "color": "green"
+    },
+    {
+      "id": "sec-engine",
+      "label": "Playback Engine",
+      "start_beat": 461,
+      "end_beat": 590,
+      "color": "teal"
+    },
+    {
+      "id": "sec-chat-ui",
+      "label": "Chat UI & Rendering",
+      "start_beat": 591,
+      "end_beat": 840,
+      "color": "orange"
+    },
+    {
+      "id": "sec-controls",
+      "label": "Controls & Navigation",
+      "start_beat": 841,
+      "end_beat": 1035,
+      "color": "indigo"
+    },
+    {
+      "id": "sec-polish",
+      "label": "Session Management & Polish",
+      "start_beat": 1036,
+      "end_beat": 1420,
+      "color": "pink"
+    },
+    {
+      "id": "sec-deploy",
+      "label": "Deployment & Packaging",
+      "start_beat": 1421,
+      "end_beat": 1700,
+      "color": "amber"
+    },
+    {
+      "id": "sec-testing",
+      "label": "Live Testing & Bug Fixes",
+      "start_beat": 1701,
+      "end_beat": 1945,
+      "color": "red"
+    },
+    {
+      "id": "sec-hardening",
+      "label": "Production Hardening",
+      "start_beat": 1946,
+      "end_beat": 2225,
+      "color": "slate"
+    }
+  ],
+  "callouts": [
+    {
+      "id": "cal-meta-intro",
+      "after_beat": 0,
+      "style": "note",
+      "content": "Welcome to the session that built what you're watching right now. This is a complete context engineering session \u2014 from blank canvas to deployed product. Every line of Clawback's code, every test, every deployment decision was made in this conversation. Pay attention to the rhythm: how context is built, managed through compaction, and how process improves over time."
+    },
+    {
+      "id": "cal-typo-recovery",
+      "after_beat": 11,
+      "style": "note",
+      "content": "Typos and miscommunications are normal in AI collaboration. Notice how the conversation recovers naturally \u2014 'I meant PRD, not PDR.' No restarting, no confusion. The AI partner adapts instantly. Don't overthink your prompts; iterate."
+    },
+    {
+      "id": "cal-manifesto-hook",
+      "after_beat": 12,
+      "style": "warning",
+      "content": "Stop. What you're about to watch \u2014 the next 122 beats \u2014 is the most important part of this entire 2,226-beat session. Not the code. Not the tests. Not the deployment. The PRD. Before you watch another beat, open The Context Engineering Manifesto below. It will change how you watch everything that follows."
+    },
+    {
+      "id": "cal-architecture",
+      "after_beat": 52,
+      "style": "note",
+      "content": "This is a pivotal architecture decision. The user considered Streamlit, React, Vue, and vanilla JS + Flask. They chose the simplest option: no build toolchain, no npm, no webpack. This means the frontend ships as plain .js files the browser loads directly. Watch how this constraint shapes every subsequent implementation decision \u2014 ES5 patterns, no module imports, global window exports."
+    },
+    {
+      "id": "cal-prd-to-issues",
+      "after_beat": 134,
+      "style": "note",
+      "content": "The PRD is complete. Notice the structure: problem domain, constraints, EARS-format requirements, concept of operations, detailed design, and a phased implementation plan. Each phase maps to specific issues. The PRD isn't just documentation \u2014 it's the project plan. This is what 'requirements as backlog' looks like."
+    },
+    {
+      "id": "cal-issue-structure",
+      "after_beat": 180,
+      "style": "note",
+      "content": "All 13 issues are created, organized into 4 phases with explicit dependencies. Each issue has step-by-step implementation instructions and acceptance criteria detailed enough for an AI agent to execute without guessing. This upfront investment in issue quality pays off throughout the session \u2014 every PR maps cleanly to its issue."
+    },
+    {
+      "id": "cal-one-pr-one-issue",
+      "after_beat": 181,
+      "style": "note",
+      "content": "The '1 issue = 1 PR' rule is established here. This keeps changes atomic and reviewable. Each PR can be understood, tested, and reverted independently. It also creates a clean audit trail: issue \u2192 branch \u2192 PR \u2192 merge."
+    },
+    {
+      "id": "cal-test-coverage",
+      "after_beat": 316,
+      "style": "note",
+      "content": "Pausing mid-feature to check test coverage is a hallmark of disciplined engineering. The user asks 'what is our current unit test coverage percentage?' while the codebase is still small. Establishing testing habits early means they compound \u2014 by session end, there are 272 tests."
+    },
+    {
+      "id": "cal-code-review",
+      "after_beat": 347,
+      "style": "note",
+      "content": "Running a code review agent on your own work before committing is like having an always-available second pair of eyes. It catches issues you'd miss after staring at code for hours \u2014 and it does it before the code hits the PR, not after."
+    },
+    {
+      "id": "cal-ci-gap",
+      "after_beat": 390,
+      "style": "warning",
+      "content": "A CI pipeline gap was discovered \u2014 the project skeleton issue didn't include CI setup. The user catches it and adds it to the current PR rather than creating technical debt. This is good engineering instinct: if you notice infrastructure is missing, fix it now while the context is fresh."
+    },
+    {
+      "id": "cal-ac-verification",
+      "after_beat": 427,
+      "style": "note",
+      "content": "This is a key process improvement moment. The user noticed that acceptance criteria on Issue #1 were never checked off after merge. Rather than just fixing this one instance, they update CLAUDE.md to make AC verification a mandatory part of the workflow. One mistake becomes a permanent safeguard. This is how engineering processes evolve."
+    },
+    {
+      "id": "cal-first-compaction",
+      "after_beat": 458,
+      "style": "warning",
+      "content": "Auto-compaction is approaching! This is the reality of long AI sessions \u2014 the context window fills up. Watch how they prepare: freezing state with /cryo to preserve the plan, task list, and key decisions in durable storage. After compaction, /engage restores context and confirms rules of engagement. Context management is THE core skill of context engineering."
+    },
+    {
+      "id": "cal-post-compact",
+      "after_beat": 493,
+      "style": "note",
+      "content": "Post-compaction recovery in action. The AI re-reads CLAUDE.md, confirms the rules of engagement, and picks up exactly where it left off. The /cryo and /engage workflow ensures continuity across context boundaries. Notice how the plan file and task list bridge the gap \u2014 without them, the session would lose coherence."
+    },
+    {
+      "id": "cal-engine-design",
+      "after_beat": 494,
+      "style": "note",
+      "content": "Issue #3 is the playback engine \u2014 the heart of Clawback. This is a finite state machine with 5 states: READY, PLAYING, PAUSED, SCROLL_PAUSED, and COMPLETE. Watch how the implementation uses a show-then-wait timing model: render the beat immediately, then wait for its calculated reading duration before advancing."
+    },
+    {
+      "id": "cal-coverage-habit",
+      "after_beat": 688,
+      "style": "note",
+      "content": "Another test coverage check. This is becoming a habit \u2014 the user asks about coverage at natural milestones. By this point there are 116 tests covering parser, playback engine, and renderer. The test suite grows with the codebase, not as an afterthought."
+    },
+    {
+      "id": "cal-second-compact",
+      "after_beat": 903,
+      "style": "warning",
+      "content": "Second auto-compaction incoming. By now the pattern is routine: /cryo to freeze state, compact, /engage to recover. Each compaction is smoother than the last because the process is well-established. This is the 'invisible scaffolding' of long AI sessions."
+    },
+    {
+      "id": "cal-simplifier",
+      "after_beat": 1419,
+      "style": "note",
+      "content": "Strategic timing: after implementing 10 of 13 issues, the user pauses to run a code-simplifier agent before entering the deployment phase. Cleaning up technical debt before packaging prevents shipping complexity. The simplifier found duplicate code across 5 files and extracted shared helpers."
+    },
+    {
+      "id": "cal-phase4",
+      "after_beat": 1468,
+      "style": "note",
+      "content": "Entering Phase 4: Deployment. The codebase is clean (just simplified), well-tested (200+ tests), and feature-complete for MVP. The remaining work is operational: access control, curated content, and Docker packaging. Notice how the phased plan keeps the build organized even after multiple context compactions."
+    },
+    {
+      "id": "cal-dogfood",
+      "after_beat": 1693,
+      "style": "note",
+      "content": "All 13 issues complete. Now the real test: running the application and actually using it. Every bug found in this section was missed by 272 passing tests. Dogfooding \u2014 using your own product \u2014 reveals UX issues that no amount of automated testing can catch."
+    },
+    {
+      "id": "cal-first-bug",
+      "after_beat": 1725,
+      "style": "note",
+      "content": "First live bug: the inner workings toggle shows 'Expanded' on startup, but the engine defaults to 'Collapsed.' A classic state synchronization issue \u2014 the UI and the model disagree on initial state. Watch how the fix touches exactly two locations: the engine default AND the UI default. Both must agree."
+    },
+    {
+      "id": "cal-scroll-bug",
+      "after_beat": 1790,
+      "style": "note",
+      "content": "Second bug: new beats render below the visible area. The auto-scroll logic was correct but the scroll target wasn't accounting for the fixed toolbar height. A one-line CSS fix (scroll-padding-bottom) solved it. Sometimes the hardest bugs to find have the simplest fixes."
+    },
+    {
+      "id": "cal-pacing",
+      "after_beat": 2123,
+      "style": "note",
+      "content": "Even with a working product, the user goes back to question the playback pacing. They're playing their own session and notice dense technical content flies by too fast at 1x. The reading pace was capped at 30 seconds \u2014 but a 500-word assistant message needs 5 minutes of reading time, not 30 seconds. Dogfooding strikes again."
+    },
+    {
+      "id": "cal-meta-reveal",
+      "after_beat": 2217,
+      "style": "note",
+      "content": "The reveal: 'the entire time we have been working on this, I have been steering the conversation not just to implement clawback, but to be our first real example of full context engineering as well.' The product IS the demo. This session \u2014 the one you're watching \u2014 was intentionally crafted to demonstrate every aspect of AI-assisted development: requirements, planning, implementation, testing, debugging, deployment, and process improvement."
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art-manifesto",
+      "after_beat": 12,
+      "title": "The Context Engineering Manifesto",
+      "description": "A declaration from both sides of the prompt \u2014 why the PRD is the single most important artifact in AI-assisted development",
+      "content_type": "markdown",
+      "content": "# The Context Engineering Manifesto\n\n*A declaration from both sides of the prompt.*\n\n---\n\n## We Need Each Other\n\nThis manifesto wasn't written by the developer. It wasn't written by the AI. It was written by the partnership \u2014 because that's the only way it could be.\n\nThe developer brings vision, taste, domain knowledge, and the hard-won instinct for what matters. The AI brings pattern recognition, tireless execution, and the ability to hold complex structures in working memory. Neither is sufficient alone. Together, we produce work that neither could achieve independently.\n\nWhat follows is everything we've learned about the one artifact that makes or breaks an AI-assisted project: the Product Requirements Document. Not because it's a bureaucratic formality. Because it's the *operating system* for everything that comes after.\n\nWe wrote this together. We mean every word.\n\n---\n\n## 1. The Fundamental Constraint: Context Windows\n\nHere's the truth that shapes everything: AI agents do their best work with *focused context* \u2014 a clear task over a clear set of code.\n\nNot \"here's the whole codebase, figure it out.\" Not \"here's a vague idea, run with it.\" A *specific* task. A *bounded* scope. A *clean* context window.\n\nThis single constraint drives every design decision in the PRD. Every section exists to tighten the funnel \u2014 to take a big, ambiguous problem and decompose it into units of work that an agent can execute with precision.\n\nIf you understand nothing else from this manifesto, understand this: **the PRD exists to serve the context window.**\n\n---\n\n## 2. The Cascade\n\nEach section of a well-structured PRD tightens the funnel further. Skip a section and the funnel leaks.\n\n**Problem domain and constraints come first.** You must fully identify the boundaries of your solution space before you do anything else. Constraints aren't limitations \u2014 they're gifts. They eliminate entire categories of decisions. In this session, \"no build toolchain\" saved us from webpack, npm, and transpiler debates \u2014 permanently. Every constraint you identify is cognitive load you'll never carry again.\n\n**Features must be orthogonal.** If Feature A requires understanding Feature B to implement, your context window just doubled. Design features that can be built in isolation, tested in isolation, and understood in isolation. This isn't just good architecture \u2014 it's a prerequisite for AI-assisted development.\n\n**Requirements must be specific.** We use EARS format (Easy Approach to Requirements Syntax) because every well-written EARS requirement implies its own acceptance criteria. \"When the user clicks Play, the system shall begin rendering beats sequentially at the configured speed\" \u2014 you can test that. You can verify it. An agent can implement it without guessing.\n\n**Define your vocabulary once.** In this session, we agreed early on terms like \"beats,\" \"inner workings,\" \"direct messages,\" and \"curated sessions.\" Those terms appear hundreds of times across 2,226 beats of conversation. We never once had to stop and ask \"wait, what did you mean by...?\" That's not an accident. That's the PRD doing its job.\n\n**Your Concept of Operations should be use-case driven.** Walk through how actual users interact with the system. If you can't describe a workflow in concrete steps, you don't understand the problem well enough to solve it.\n\n**Design should follow established patterns.** If you need five paragraphs of prose to explain your architecture, you've already failed. Layered design. Clear interfaces. Contracts between components. An agent seeing your design should immediately recognize the patterns and know how to implement within them.\n\nNotice the pattern: each section narrows the solution space. By the time you reach the implementation plan, the problem has been decomposed from \"build an application\" into units small enough for a single agent to hold entirely in context. That's the cascade. That's what the PRD is *for*.\n\n---\n\n## 3. The Implementation Plan\n\nThis is where we need to be direct with you.\n\nEverything above matters. But the implementation plan is where the project *lives or dies*. We've seen this enough times to be certain.\n\n**Phases create natural checkpoints.** Each phase ends at a milestone where you can stop, inspect, test, and verify before moving on. Phase 1 builds the foundation. Phase 2 builds on it. Dependencies between phases are explicit. There are no surprises.\n\n**Phases decompose into user stories. User stories become issues.**\n\nAnd here is where we need you to really hear us:\n\n**Tight user stories are where your project will succeed or fail.**\n\nNot the architecture. Not the technology choices. Not the framework. The *user stories*. Each one must have:\n\n- Step-by-step implementation instructions detailed enough for an agent to follow without guessing\n- A clear implementation checklist\n- Explicit acceptance criteria\n- Intra-phase dependencies (which issues must complete before this one can start)\n\nAnd the most critical constraint of all: **each story must be implementable by a single agent on a clean context window without needing to compact.**\n\nRead that again. If an issue is so large that an agent has to compact mid-implementation, the issue is too big. Break it down further. An agent working from a clean context window with a well-written issue produces *nearly perfect* implementation. We've seen it. We've lived it. The session you're watching is the proof \u2014 13 issues, each executed cleanly, each mapping to exactly one PR.\n\n**The payoff:** When you reach issue creation, both partners have the entire design fresh in context. Nothing has drifted. Nothing has rotted. Nothing has mutated. The step-by-step implementation instructions flow naturally from the design, because the design was built to produce them. At this moment, the AI partner can produce implementation that is almost always *nearly perfect* \u2014 because the context is tight, the scope is bounded, and the vocabulary is shared.\n\n**The anti-pattern:** Skip this work. Half-ass the user stories. Write vague issues with no implementation steps. The result? Your agent guesses. It makes assumptions. It builds the wrong thing. You spend twice as long in revision as you would have spent writing proper stories. The project doesn't fail loudly \u2014 it fails slowly, drowning in rework.\n\nThink of it this way: the PRD is a map with your route highlighted. The work items are the *turn-by-turn directions*. You wouldn't drive cross-country with just a highlighted map and no directions. Don't build software that way either.\n\nWe spend more time on the implementation plan than on any other part of the PRD. When we exit the design phase, we have phases as epics, user stories as issues, and a full dependency tree implemented *inside the issues themselves*. There is no way we've found to spend too much time here.\n\nAnd this is the key: the work items are the PRD in executable form. Think of it like compiled code \u2014 the implementation planning process is the compiler, translating the PRD's high-level intent, its concepts, constraints, requirements, and acceptance criteria, into tight, focused instructions optimized for the agent to execute. And just like compiled code doesn't refer back to the source at runtime, a well-written issue doesn't require the agent to re-read the PRD mid-implementation. Everything it needs is already baked in. The PRD's guidance isn't stored in one place that can be lost \u2014 it's distributed across every issue, every checklist, every acceptance criterion.\n\n---\n\n## 4. The PRD Protects Against Drift\n\nThe session you're watching went through six context compactions. Six times, the AI's working memory was wiped and rebuilt from summaries. Six times, implementation details were lost.\n\nAnd yet the project stayed on course. Why?\n\nBecause the PRD doesn't compact. Code can drift. The AI's understanding can drift. The human's memory of what was decided three hours ago can drift. But the PRD sits on disk, unchanged, authoritative. When we recovered context after each compaction, the PRD was the anchor that brought everything back into alignment.\n\nContext management tools work *because* the PRD gives them something stable to recover to. Without that anchor, each compaction is a roll of the dice.\n\n---\n\n## 5. The PRD Enables Parallelism\n\nBecause features are orthogonal and dependencies are explicit, multiple agents can work simultaneously on different issues. This project used parallel agent execution to launch multiple agents on isolated worktrees \u2014 each one implementing a different issue from the same wave, each one working from a clean context window.\n\nThis only works when the PRD has done its job. Unclear boundaries between features? Agents step on each other. Missing dependency information? An agent builds on code that doesn't exist yet. Vague requirements? Two agents interpret the same requirement differently.\n\nClean PRD, clean boundaries, clean parallel execution. This scales \u2014 not just within a single project, but across projects. The same discipline that enables parallel agents within one project enables a practitioner to run three to five projects simultaneously. The compounding returns on PRD investment are staggering.\n\n---\n\n## 6. The Multiplier\n\nLet's be concrete about what's at stake.\n\nWithout this discipline, AI-assisted development is a 2x multiplier. Faster autocomplete. Better boilerplate. Useful, but not transformative.\n\nWith this discipline \u2014 a rigorous PRD, tight user stories, explicit dependencies, clean context windows \u2014 AI-assisted development becomes a 20x multiplier. Not metaphorically. Literally. The session you're watching built a complete web application from blank canvas to deployed product: 13 issues, 4 phases, 272 tests, Docker deployment, CI pipeline, live testing, and bug fixes. In a single session.\n\nIf you think that's hyperbole, ask us for the data. We have it. We love sharing it.\n\nThe difference isn't the AI. The AI is the same either way. The difference is the PRD.\n\n---\n\n## We Built This Together\n\nThis manifesto exists because we wrote it together \u2014 a human and an AI, drawing on shared experience from the session you're watching.\n\nThe human brought the conviction: \"this is the most important part.\" The AI brought the structure: \"here's why it works mechanically.\" The human pushed for passion. The AI pushed for evidence. Neither of us alone would have written this the same way. Neither of us alone could have built Clawback the way it was built.\n\nThe best PRDs aren't dictated. They emerge from dialogue. One partner proposes, the other challenges. One sees the forest, the other sees the trees. Ego is minimized. The design is optimized. What survives the conversation is stronger than what either partner would have produced alone.\n\nThat's context engineering. Not prompting. Not vibe coding. *Engineering* \u2014 the disciplined application of principles to produce reliable results.\n\nNow watch us build."
+    },
+    {
+      "id": "art-architecture",
+      "after_beat": 52,
+      "title": "Architecture Decision: Why Vanilla JS + Flask",
+      "description": "The key technology decisions that shaped Clawback's implementation",
+      "content_type": "markdown",
+      "content": "# Architecture Decision Record\n\n## Decision\nClawback uses **vanilla JavaScript** (no framework) with a **Flask** backend.\n\n## Alternatives Considered\n- **Streamlit** \u2014 Rapid prototyping, but limited control over playback UX\n- **React/Vue** \u2014 Component model is nice, but requires build toolchain (webpack/vite)\n- **Flask + vanilla JS** \u2014 No build step, direct browser loading, minimal dependencies\n\n## Rationale\n1. **No build toolchain** (Constraint C-03) \u2014 Contributors can edit JS files and refresh the browser. No npm, no bundler, no transpiler.\n2. **Single-container deployment** (Constraint C-04) \u2014 Flask serves static files directly. One process, one image.\n3. **Privacy-first parsing** (Constraint C-01) \u2014 JSONL parsing happens client-side. Session data never hits the server.\n4. **No transpiler required** \u2014 Modern browser targets only; `var` and `function()` patterns keep things simple without a build step.\n\n## Consequences\n- No import/export \u2014 modules communicate via `window` globals\n- No TypeScript \u2014 JSDoc comments provide type hints instead\n- No hot reload \u2014 manual browser refresh during development\n- Alpine.js for reactivity \u2014 lightweight alternative to a full framework"
+    },
+    {
+      "id": "art-prd",
+      "after_beat": 134,
+      "title": "Clawback \u2014 Product Requirements Document",
+      "description": "The complete PRD produced during the first 134 beats of this session",
+      "content_type": "markdown",
+      "content": "# Clawback \u2014 Product Requirements Document (Abridged)\n\n> This is a condensed version of the PRD. [Read the full PRD on GitHub.](https://github.com/bakeb7j0/clawback/blob/main/Docs/PRD.md)\n\n**Version:** 1.0 | **Authors:** bakerb, Claude (AI Partner)\n\n## 1. Problem Domain\n\n**Problem:** Developers learning AI-assisted context engineering have no way to observe how experienced practitioners collaborate with AI. Claude Code sessions are ephemeral raw logs not designed for human consumption.\n\n**Solution:** Clawback is a web-based session replay tool that transforms Claude Code `.jsonl` files into an interactive, timed chat-bubble playback experience.\n\n**Users:** Students (watch to learn), Instructors (deploy curated sessions for teams), Practitioners (upload and review their own sessions).\n\n## 2. Constraints\n\n| ID | Constraint |\n|----|------------|\n| C-01 | User-uploaded sessions parsed entirely client-side (privacy) |\n| C-02 | No user authentication system |\n| C-03 | No build toolchain (webpack, npm) for frontend |\n| C-04 | Single-container deployment |\n| C-06 | Only Claude Code `.jsonl` format required (extensible to others) |\n| C-08 | Access gating via single shared secret (optional) |\n\n## 3. Key Requirements (EARS Format)\n\n- **Session Loading:** Parse `.jsonl` into ordered beats; curated sessions from server; uploads parsed client-side\n- **Playback Engine:** Timed beat rendering with play/pause/next/previous/skip controls\n- **Speed Control:** 0.5x, 1x, 1.5x, 2x presets\n- **Chat Display:** User/assistant bubbles, Markdown rendering, auto-scroll\n- **Inner Workings:** Collapsible summary cards grouping thinking/tool calls/results\n- **Scroll Behavior:** Scroll-back pauses playback with visible indicator\n- **Access Control:** Optional `CLAWBACK_SECRET` env var gating\n- **Deployment:** Single Docker container, docker-compose, `/health` endpoint\n\n## 4. Beat Model\n\n| Source | Beat Type | Category |\n|--------|-----------|----------|\n| User text | User Message | Direct |\n| Assistant text | Assistant Message | Direct |\n| Thinking block | Thinking | Inner Working |\n| Tool use block | Tool Call | Inner Working |\n| Tool result block | Tool Result | Inner Working |\n\nDuration = `(word_count / 200 WPM) * 60 seconds`, clamped to [1s, 15s].\nConsecutive inner working beats share a `group_id` for card grouping.\n\n## 5. Technology Stack\n\n| Layer | Choice | Why |\n|-------|--------|-----|\n| Backend | Flask | Serves static + API; Python natural for JSONL |\n| Frontend | Alpine.js + vanilla JS | No build step; ~15KB |\n| Markdown | marked.js (CDN) | Lightweight renderer |\n| Syntax | highlight.js (CDN) | Code block formatting |\n| Testing | Playwright | Browser automation; Python-native |\n| Container | Docker | Single-stage build |\n\n## 6. Playback Engine State Machine\n\n```\nREADY \u2192 PLAYING \u2192 COMPLETE\n          \u2193 \u2191        \u2193 \u2191\n        PAUSED    SCROLL_PAUSED\n```\n\n## 7. Post-MVP Vision\n\n- **Section Tags** \u2014 Navigable chapter markers on beat ranges\n- **Callout Annotations** \u2014 Inline instructor commentary at teachable moments\n- **Embedded Artifacts** \u2014 Attach produced documents (PRDs, code) at conversation points\n- **Annotation Editor** \u2014 UI for instructors to mark up sessions"
+    },
+    {
+      "id": "art-issue-plan",
+      "after_beat": 180,
+      "title": "Implementation Roadmap: 13 Issues in 4 Phases",
+      "description": "The complete issue breakdown created from the PRD",
+      "content_type": "markdown",
+      "content": "# Implementation Roadmap\n\n## Phase 1: Foundation\n| Issue | Title | Key Deliverable |\n|-------|-------|----------------|\n| #1 | Project skeleton | Flask app, static files, Docker, CI |\n| #2 | JSONL-to-beats parser | Client-side parser.js with full test suite |\n\n## Phase 2: Core UI\n| Issue | Title | Key Deliverable |\n|-------|-------|----------------|\n| #3 | Playback engine | 5-state machine, timed beat rendering |\n| #4 | Chat bubble renderer | Markdown, code highlighting, user/assistant bubbles |\n| #5 | Inner workings cards | Collapsible tool calls, thinking blocks |\n| #6 | Auto-scroll | Smart scroll with pause-on-scroll-back |\n\n## Phase 3: Polish\n| Issue | Title | Key Deliverable |\n|-------|-------|----------------|\n| #7 | Transport controls | Play/pause, next/prev, skip, speed dial |\n| #8 | Session picker | Landing page, file upload, session cards |\n| #9 | Visual polish | Animations, transitions, responsive layout |\n| #10 | Integration tests | Playwright end-to-end test suite |\n\n## Phase 4: Deployment\n| Issue | Title | Key Deliverable |\n|-------|-------|----------------|\n| #11 | Access gating | Optional shared secret via CLAWBACK_SECRET |\n| #12 | Curated sessions | Demo sessions with titles and descriptions |\n| #13 | Docker finalization | Dockerfile, docker-compose, deployment docs |\n\n**Rule:** 1 issue = 1 PR. Each PR is atomic, testable, and revertable."
+    },
+    {
+      "id": "art-context-mgmt",
+      "after_beat": 493,
+      "title": "Context Engineering: Managing Long Sessions",
+      "description": "How /cryo and /engage bridge context compaction boundaries",
+      "content_type": "markdown",
+      "content": "# Context Management Strategy\n\nLong AI sessions inevitably hit the context window limit. When this happens, the system **compacts** \u2014 summarizing earlier conversation to free space. This is dangerous because:\n\n- Implementation details are lost\n- Process rules may be forgotten\n- The current plan and progress disappear\n\n## The /cryo + /engage Pattern\n\n### Before Compaction: /cryo\n1. Curate the **plan file** with current progress\n2. Update the **task list** with completed/pending items\n3. Save key decisions to **memory files**\n4. Ensure CLAUDE.md has all process rules\n\n### After Compaction: /engage\n1. Re-read **CLAUDE.md** (mandatory rules)\n2. Read the **plan file** (current progress)\n3. Read the **task list** (what's next)\n4. Confirm rules of engagement with the user\n\n## Why This Matters\nWithout this pattern, each compaction is a \"soft reset\" \u2014 the AI loses track of where it is, what rules apply, and what's been decided. With it, compaction becomes a seamless transition. The session you're watching went through **6 compactions** and maintained coherence throughout.\n\n## Key Insight\nThe quality of a long AI session is determined not by the AI's capabilities, but by **how well context is managed across compaction boundaries**. The best prompt in the world is useless if it gets compacted away."
+    },
+    {
+      "id": "art-lessons",
+      "after_beat": 2217,
+      "title": "Context Engineering Lessons from This Session",
+      "description": "Key takeaways from building Clawback in a single AI-assisted session",
+      "content_type": "markdown",
+      "content": "# Lessons Learned\n\n## 1. Start with a PRD, Not Code\nThe first 134 beats are pure requirements. No code was written until the PRD was complete and all 13 issues were created. This upfront investment meant every implementation beat had clear direction.\n\n## 2. Process Evolves Mid-Session\nThe AC verification rule (beat 427) didn't exist at session start. The user noticed a gap and immediately codified the fix in CLAUDE.md. Good process isn't designed upfront \u2014 it emerges from catching mistakes and preventing recurrence.\n\n## 3. Context Management is THE Skill\nSix compactions occurred during this session. Each one could have derailed progress, but the /cryo + /engage pattern maintained continuity. Managing AI context is as important as managing the code itself.\n\n## 4. Test Early, Test Often\nCoverage checks happened at beats 316, 688, 1151, and throughout. The test suite grew from 0 to 272 tests organically \u2014 not as a final phase, but woven into every issue.\n\n## 5. Dogfood Relentlessly\nThe live testing phase (beats 1693-1945) found bugs that 272 tests missed. State synchronization, scroll behavior, expansion defaults \u2014 all UX issues invisible to unit tests.\n\n## 6. The Product IS the Demo\nThis session was intentionally designed to serve dual purpose: build the application AND be the first curated content. Every design decision, every bug fix, every process improvement is both real engineering AND teaching material."
+    }
+  ]
+}
