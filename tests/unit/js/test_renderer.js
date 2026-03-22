@@ -83,6 +83,7 @@ global.marked = {
         markedCalls.push(text);
         return `<p>${text}</p>`;
     },
+    use: () => {},
 };
 
 let hljsCalls = [];

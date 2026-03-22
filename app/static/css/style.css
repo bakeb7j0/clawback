@@ -514,6 +514,7 @@ body {
     align-self: flex-end;
     background-color: var(--color-user-bubble);
     border-bottom-right-radius: 4px;
+    white-space: pre-wrap;
 }
 
 /* Assistant bubble — left-aligned, bordered */

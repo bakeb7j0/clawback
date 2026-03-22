@@ -9,6 +9,20 @@
  * parser's group_id into collapsible summary cards.
  */
 
+// Configure marked to open all links in a new tab
+marked.use({
+    renderer: {
+        link: function (args) {
+            var href = /^javascript:/i.test(args.href) ? "#" : args.href;
+            var label = (args.tokens && args.tokens.length)
+                ? this.parser.parseInline(args.tokens)
+                : (args.text || href);
+            return '<a href="' + href + '" target="_blank" rel="noopener noreferrer">'
+                + label + '</a>';
+        },
+    },
+});
+
 /** @type {Map<number, Object>} Active inner workings groups by group_id */
 const _activeGroups = new Map();
 
