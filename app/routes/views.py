@@ -14,6 +14,18 @@ from flask import (
 views_bp = Blueprint("views", __name__)
 
 
+def _safe_compare(provided, secret):
+    """Compare strings using hmac.compare_digest, encoding to bytes first.
+
+    hmac.compare_digest raises TypeError for non-ASCII str arguments,
+    so we encode both sides to UTF-8 before comparison.
+    """
+    try:
+        return hmac.compare_digest(provided.encode("utf-8"), secret.encode("utf-8"))
+    except (UnicodeDecodeError, AttributeError):
+        return False
+
+
 @views_bp.route("/")
 def index():
     """Serve the single-page application."""
@@ -31,7 +43,7 @@ def login():
         return render_template("login.html", error=None)
 
     provided = request.form.get("secret", "")
-    if not provided or not hmac.compare_digest(provided, secret):
+    if not provided or not _safe_compare(provided, secret):
         return render_template("login.html", error="Invalid secret"), 401
 
     resp = make_response(redirect(url_for("views.index")))

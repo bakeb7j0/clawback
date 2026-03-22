@@ -46,7 +46,7 @@ def _parse_jsonl_lines(text):
 
 
 def _filter_conversation_messages(messages):
-    return [m for m in messages if m.get("type") in CONVERSATION_TYPES]
+    return [m for m in messages if isinstance(m, dict) and m.get("type") in CONVERSATION_TYPES]
 
 
 def _ts_key(msg):
@@ -76,11 +76,7 @@ def _order_messages(messages):
         if parent:
             children_of.setdefault(parent, []).append(msg)
 
-    roots = [
-        m
-        for m in messages
-        if not m.get("parentUuid") or m.get("parentUuid") not in by_uuid
-    ]
+    roots = [m for m in messages if not m.get("parentUuid") or m.get("parentUuid") not in by_uuid]
 
     if not roots:
         return sorted(messages, key=_ts_key)
@@ -105,9 +101,7 @@ def _order_messages(messages):
         walk(root)
 
     if len(ordered) < len(messages):
-        remaining = [
-            m for m in messages if not m.get("uuid") or m.get("uuid") not in visited
-        ]
+        remaining = [m for m in messages if not m.get("uuid") or m.get("uuid") not in visited]
         remaining.sort(key=_ts_key)
         ordered.extend(remaining)
 
