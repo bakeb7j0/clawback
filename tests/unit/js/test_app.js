@@ -1237,6 +1237,7 @@ test("editMode defaults to false", function () {
 
 test("toggleEditMode flips editMode", function () {
     const app = makeApp(5);
+    app.readOnly = false;
     app.toggleEditMode();
     assert.equal(app.editMode, true);
     app.toggleEditMode();
@@ -1245,6 +1246,7 @@ test("toggleEditMode flips editMode", function () {
 
 test("toggleEditMode dismisses context menu", function () {
     const app = makeApp(5);
+    app.readOnly = false;
     app._contextMenu = { x: 0, y: 0, items: [], beatId: "0" };
     app.toggleEditMode();
     assert.equal(app._contextMenu, null);
@@ -2459,6 +2461,7 @@ function makeFileEvent(file) {
 
 test("openUploadForm sets _uploadForm state", function () {
     var app = makeApp();
+    app.readOnly = false;
     var file = makeFakeFile("my-session.jsonl");
     app.openUploadForm(makeFileEvent(file));
 
@@ -2473,12 +2476,14 @@ test("openUploadForm sets _uploadForm state", function () {
 
 test("openUploadForm strips .jsonl and replaces hyphens/underscores", function () {
     var app = makeApp();
+    app.readOnly = false;
     app.openUploadForm(makeFileEvent(makeFakeFile("cool_demo-session.jsonl")));
     assert.equal(app._uploadForm.title, "cool demo session");
 });
 
 test("openUploadForm clears file input value", function () {
     var app = makeApp();
+    app.readOnly = false;
     var evt = makeFileEvent(makeFakeFile());
     app.openUploadForm(evt);
     assert.equal(evt.target.value, "");
@@ -2492,6 +2497,7 @@ test("openUploadForm no-ops when no file selected", function () {
 
 test("cancelUpload resets _uploadForm to null", function () {
     var app = makeApp();
+    app.readOnly = false;
     app.openUploadForm(makeFileEvent(makeFakeFile()));
     assert.notEqual(app._uploadForm, null);
     app.cancelUpload();
@@ -2500,6 +2506,7 @@ test("cancelUpload resets _uploadForm to null", function () {
 
 test("submitUpload rejects empty title", function () {
     var app = makeApp();
+    app.readOnly = false;
     app.openUploadForm(makeFileEvent(makeFakeFile()));
     app._uploadForm.title = "   ";
     app.submitUpload();
@@ -2516,6 +2523,7 @@ test("submitUpload no-ops when _uploadForm is null", function () {
 
 test("Escape dismisses upload form in picker view", function () {
     var app = makeApp();
+    app.readOnly = false;
     app.view = "picker";
     app.openUploadForm(makeFileEvent(makeFakeFile()));
     assert.notEqual(app._uploadForm, null);
@@ -2684,6 +2692,36 @@ test("startTour twice does not leak resize handlers", function () {
     assert.equal((_windowListeners.resize || []).length, 1, "only one resize listener should be registered");
     app.endTour();
     assert.equal((_windowListeners.resize || []).length, 0, "listener should be removed after endTour");
+});
+
+// ---------------------------------------------------------------------------
+// Read-only mode tests
+// ---------------------------------------------------------------------------
+
+test("readOnly defaults to true (fail-closed)", function () {
+    const app = makeApp(5);
+    assert.equal(app.readOnly, true);
+});
+
+test("toggleEditMode is a no-op when readOnly is true", function () {
+    const app = makeApp(5);
+    app.readOnly = true;
+    app.toggleEditMode();
+    assert.equal(app.editMode, false, "editMode must stay false in read-only mode");
+});
+
+test("toggleEditMode works when readOnly is false", function () {
+    const app = makeApp(5);
+    app.readOnly = false;
+    app.toggleEditMode();
+    assert.equal(app.editMode, true, "editMode should toggle when not read-only");
+});
+
+test("openUploadForm is a no-op when readOnly is true", function () {
+    var app = makeApp();
+    app.readOnly = true;
+    app.openUploadForm(makeFileEvent(makeFakeFile()));
+    assert.equal(app._uploadForm, null, "upload form must not open in read-only mode");
 });
 
 // ---------------------------------------------------------------------------

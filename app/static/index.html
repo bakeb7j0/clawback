@@ -80,7 +80,7 @@
                         <p class="hero__tagline">Watch how AI-assisted development actually works.</p>
                         <ul class="hero__actions" role="list">
                             <li><strong>Play a curated session</strong> &mdash; pick one below to see a real context engineering workflow</li>
-                            <li><strong>Upload your own</strong> &mdash; drop a Claude Code <code>.jsonl</code> file to replay any session</li>
+                            <li x-show="!readOnly"><strong>Upload your own</strong> &mdash; drop a Claude Code <code>.jsonl</code> file to replay any session</li>
                         </ul>
                     </div>
 
@@ -93,8 +93,8 @@
                                 <span class="picker__card-meta" x-text="session.beat_count + ' beats'"></span>
                             </div>
                         </template>
-                        <!-- Add Session card -->
-                        <label class="picker__card picker__card--add">
+                        <!-- Add Session card (hidden in read-only mode) -->
+                        <label class="picker__card picker__card--add" x-show="!readOnly">
                             <span class="picker__add-icon">+</span>
                             <span class="picker__add-label">Add Session</span>
                             <input type="file" accept=".jsonl" @change="openUploadForm($event)" hidden>
@@ -150,8 +150,8 @@
                         </div>
                     </template>
 
-                    <!-- Upload area -->
-                    <div class="picker__upload">
+                    <!-- Upload area (hidden in read-only mode) -->
+                    <div class="picker__upload" x-show="!readOnly">
                         <h3 class="picker__upload-title">Upload your own session</h3>
                         <div class="picker__upload-zone"
                              @dragover.prevent="$el.classList.add('picker__upload-zone--active')"
@@ -220,8 +220,8 @@
 
         <div class="toolbar__separator"></div>
 
-        <!-- Edit mode toggle -->
-        <div class="toolbar__group">
+        <!-- Edit mode toggle (hidden in read-only mode) -->
+        <div class="toolbar__group" x-show="!readOnly">
             <button class="toolbar__btn toolbar__btn--iw"
                     :class="{ 'toolbar__btn--active': editMode }"
                     @click="toggleEditMode()"

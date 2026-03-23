@@ -1,0 +1,21 @@
+from app import create_app
+
+
+def test_read_only_defaults_false():
+    """CLAWBACK_READ_ONLY defaults to False when env var is not set."""
+    app = create_app({"TESTING": True})
+    # Config.CLAWBACK_READ_ONLY reads from env; factory override not set.
+    # Default env value (empty string) is not in the truthy set.
+    assert app.config["CLAWBACK_READ_ONLY"] is False
+
+
+def test_read_only_true_via_factory():
+    """CLAWBACK_READ_ONLY=True is respected via config override."""
+    app = create_app({"TESTING": True, "CLAWBACK_READ_ONLY": True})
+    assert app.config["CLAWBACK_READ_ONLY"] is True
+
+
+def test_read_only_false_via_factory():
+    """CLAWBACK_READ_ONLY=False is respected via config override."""
+    app = create_app({"TESTING": True, "CLAWBACK_READ_ONLY": False})
+    assert app.config["CLAWBACK_READ_ONLY"] is False

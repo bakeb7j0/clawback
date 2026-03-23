@@ -11,6 +11,12 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
 
 
+@api_bp.route("/config")
+def get_config():
+    """Return client-visible configuration flags."""
+    return jsonify({"readOnly": current_app.config["CLAWBACK_READ_ONLY"]})
+
+
 @api_bp.route("/sessions")
 def list_sessions():
     """List available curated sessions."""
@@ -23,6 +29,8 @@ def list_sessions():
 @api_bp.route("/sessions/upload", methods=["POST"])
 def upload_session():
     """Upload a new session JSONL with metadata."""
+    if current_app.config["CLAWBACK_READ_ONLY"]:
+        return jsonify({"status": "error", "message": "Read-only mode"}), 403
     file = request.files.get("file")
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
@@ -140,6 +148,8 @@ def get_session(session_id):
 @api_bp.route("/sessions/<session_id>/annotations", methods=["PUT"])
 def save_annotations(session_id):
     """Validate and save annotations for a curated session."""
+    if current_app.config["CLAWBACK_READ_ONLY"]:
+        return jsonify({"status": "error", "message": "Read-only mode"}), 403
     cache = current_app.session_cache
     if cache.get_session(session_id) is None:
         return jsonify({"status": "error", "message": "Session not found"}), 404

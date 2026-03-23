@@ -24,6 +24,7 @@ function clawbackApp() {
         progressSegments: [{ width: 100, color: null }],
         artifactOpen: false,
         _currentArtifact: null,
+        readOnly: true,
         editMode: false,
         _contextMenu: null,
         editToast: "",
@@ -52,7 +53,16 @@ function clawbackApp() {
 
         /** Called by Alpine.js on component initialization. */
         init() {
+            this.fetchConfig();
             this.fetchSessions();
+        },
+
+        /** Fetch server configuration (e.g. read-only mode). */
+        fetchConfig() {
+            fetch("/api/config")
+                .then(function (r) { return r.json(); })
+                .then(function (data) { this.readOnly = !!data.readOnly; }.bind(this))
+                .catch(function () { this.readOnly = false; }.bind(this));
         },
 
         /** Handle keyboard shortcuts (bound via @keydown.window on body). */
@@ -196,6 +206,7 @@ function clawbackApp() {
          * @param {Event} event - File input change event
          */
         openUploadForm(event) {
+            if (this.readOnly) return;
             var file = event.target.files[0];
             if (!file) return;
             // Pre-fill title from filename
@@ -586,6 +597,7 @@ function clawbackApp() {
 
         /** Toggle annotation editing mode. */
         toggleEditMode() {
+            if (this.readOnly) return;
             this.editMode = !this.editMode;
             this.dismissContextMenu();
         },
