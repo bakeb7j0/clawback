@@ -116,6 +116,12 @@
       "content": "The '1 issue = 1 PR' rule is established here. This keeps changes atomic and reviewable. Each PR can be understood, tested, and reverted independently. It also creates a clean audit trail: issue \u2192 branch \u2192 PR \u2192 merge."
     },
     {
+      "id": "cal-skill-scp",
+      "after_beat": 265,
+      "style": "note",
+      "content": "**Custom Skill: /scp (Stage, Commit, Push).** This is the first invocation of a custom slash command. /scp is a skill that handles the full git commit workflow: it checks the branch, validates tests pass, presents the pre-commit checklist, waits for explicit approval, then stages specific files, commits, and pushes. Custom skills like this encode repeatable processes so neither partner has to remember every step."
+    },
+    {
       "id": "cal-test-coverage",
       "after_beat": 316,
       "style": "note",
@@ -144,6 +150,18 @@
       "after_beat": 458,
       "style": "warning",
       "content": "Auto-compaction is approaching! This is the reality of long AI sessions \u2014 the context window fills up. Watch how they prepare: freezing state with /cryo to preserve the plan, task list, and key decisions in durable storage. After compaction, /engage restores context and confirms rules of engagement. Context management is THE core skill of context engineering."
+    },
+    {
+      "id": "cal-skill-cryo",
+      "after_beat": 459,
+      "style": "note",
+      "content": "**Custom Skill: /cryo (Cryogenic Freeze).** When context compaction is imminent, /cryo preserves everything that matters into durable storage: the current plan file, task list, project memories, and key decisions. Think of it as saving your game before a checkpoint. Without /cryo, compaction would erase progress tracking and the AI would wake up disoriented."
+    },
+    {
+      "id": "cal-skill-engage",
+      "after_beat": 486,
+      "style": "note",
+      "content": "**Custom Skill: /engage (Rules of Engagement).** The counterpart to /cryo. After compaction wipes the AI's working memory, /engage is the recovery ritual: re-read CLAUDE.md, confirm mandatory rules, load the current plan, and report ready state. It ensures the AI partner doesn't skip process rules or forget where the project left off. /cryo freezes; /engage thaws."
     },
     {
       "id": "cal-post-compact",
@@ -198,6 +216,12 @@
       "after_beat": 1790,
       "style": "note",
       "content": "Second bug: new beats render below the visible area. The auto-scroll logic was correct but the scroll target wasn't accounting for the fixed toolbar height. A one-line CSS fix (scroll-padding-bottom) solved it. Sometimes the hardest bugs to find have the simplest fixes."
+    },
+    {
+      "id": "cal-skill-mmr",
+      "after_beat": 1975,
+      "style": "note",
+      "content": "**Custom Skill: /mmr (Merge Request).** A single command to merge a PR: it reads the PR diff, verifies CI status, squash-merges with a detailed commit message, and deletes the source branch. Notice it was written for GitLab (hence 'MR') but adapts to GitHub's 'PR' model automatically. Custom skills don't need to be perfect \u2014 they encode intent and the AI adapts to the actual environment."
     },
     {
       "id": "cal-pacing",
