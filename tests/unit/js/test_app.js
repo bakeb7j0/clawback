@@ -540,6 +540,40 @@ test("ArrowLeft goes back one beat", function () {
     assert.equal(evt.defaultPrevented, true);
 });
 
+test("ArrowUp increases speed", function () {
+    const app = makeApp(5);
+    assert.equal(app.speed, 1.0);
+    var evt = makeKeyEvent("ArrowUp");
+    app.handleKeydown(evt);
+    assert.equal(app.speed, 1.5);
+    assert.equal(evt.defaultPrevented, true);
+});
+
+test("ArrowDown decreases speed", function () {
+    const app = makeApp(5);
+    assert.equal(app.speed, 1.0);
+    var evt = makeKeyEvent("ArrowDown");
+    app.handleKeydown(evt);
+    assert.equal(app.speed, 0.5);
+    assert.equal(evt.defaultPrevented, true);
+});
+
+test("ArrowUp does not exceed max speed", function () {
+    const app = makeApp(5);
+    app.speed = 4.0;
+    var evt = makeKeyEvent("ArrowUp");
+    app.handleKeydown(evt);
+    assert.equal(app.speed, 4.0);
+});
+
+test("ArrowDown does not go below min speed", function () {
+    const app = makeApp(5);
+    app.speed = 0.5;
+    var evt = makeKeyEvent("ArrowDown");
+    app.handleKeydown(evt);
+    assert.equal(app.speed, 0.5);
+});
+
 test("keys are ignored in picker view", function () {
     const app = clawbackApp();
     app.$refs = { chatArea: { innerHTML: "", parentElement: {} } };
