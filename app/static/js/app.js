@@ -37,6 +37,18 @@ function clawbackApp() {
         _scroller: null,
         _conversationBeatsRendered: 0,
         _beatIdToMergedIndex: null,
+        tourActive: false,
+        tourStep: 0,
+        _tourSteps: [
+            { target: ".toolbar__group:first-child", title: "Transport Controls", text: "Play, pause, skip forward/back, and jump to start or end. These control the beat-by-beat playback of the session.", position: "top" },
+            { target: ".speed-stepper", title: "Speed Control", text: "Adjust playback speed from 0.5x to 4.0x. Slower speeds give you time to read dense content; faster speeds let you skim.", position: "top" },
+            { target: ".toolbar__label", title: "Inner Workings", text: "Toggle between Collapsed and Expanded to show or hide the AI's thinking, tool calls, and tool results. Collapsed gives a clean chat view.", position: "top" },
+            { target: ".chat-area", title: "Chat Area", text: "Messages appear here as the session plays back. User messages are on the right, assistant messages on the left. Click any beat in edit mode to add annotations.", position: "bottom" },
+            { target: ".toolbar__group--progress", title: "Progress Bar", text: "Shows your position in the session. The colored segments represent sections defined by the instructor. The beat counter shows your exact position.", position: "top" },
+        ],
+        _tourShowGlow: false,
+        _tourRect: null,
+        _tourResizeHandler: null,
 
         /** Called by Alpine.js on component initialization. */
         init() {
@@ -55,7 +67,9 @@ function clawbackApp() {
 
             // Escape is always handled, even inside form inputs
             if (event.code === "Escape") {
-                if (this._activeEditForm) {
+                if (this.tourActive) {
+                    this.endTour();
+                } else if (this._activeEditForm) {
                     this._dismissEditForm();
                 } else if (this._sectionForm) {
                     this.cancelSectionForm();
@@ -310,6 +324,8 @@ function clawbackApp() {
                 this.progressSegments = [{ width: 100, color: null }];
             }
 
+            this._initTourGlow();
+
             // Build merged beat array with callout pseudo-beats interleaved
             var merged = this._buildMergedBeats(beats);
 
@@ -380,6 +396,7 @@ function clawbackApp() {
 
         /** Toggle between play and pause. */
         togglePlay() {
+            this._dismissGlow();
             if (!this._engine) return;
             if (this.playbackState === "PLAYING") {
                 this._engine.pause();
@@ -457,6 +474,82 @@ function clawbackApp() {
         /** Toggle section sidebar visibility. */
         toggleSections() {
             this.showSections = !this.showSections;
+        },
+
+        /** Start the coachmark tour. */
+        startTour() {
+            this._tourShowGlow = false;
+            // Close competing overlays before opening tour
+            if (this.artifactOpen) this.closeArtifact();
+            if (this._contextMenu) this.dismissContextMenu();
+            // Remove stale resize listener before re-registering
+            if (this._tourResizeHandler) {
+                window.removeEventListener("resize", this._tourResizeHandler);
+            }
+            this.tourStep = 0;
+            this.tourActive = true;
+            try { localStorage.setItem("clawback_toured", "1"); } catch (e) { /* noop */ }
+            // Reposition spotlight on window resize
+            this._tourResizeHandler = function () { this.getTourRect(); }.bind(this);
+            window.addEventListener("resize", this._tourResizeHandler);
+        },
+
+        /** Advance to the next tour step, or end the tour. */
+        tourNext() {
+            if (this.tourStep < this._tourSteps.length - 1) {
+                this.tourStep++;
+            } else {
+                this.endTour();
+            }
+        },
+
+        /** Go back to the previous tour step. */
+        tourPrev() {
+            if (this.tourStep > 0) {
+                this.tourStep--;
+            }
+        },
+
+        /** End the tour. */
+        endTour() {
+            this.tourActive = false;
+            if (this._tourResizeHandler) {
+                window.removeEventListener("resize", this._tourResizeHandler);
+                this._tourResizeHandler = null;
+            }
+        },
+
+        /** Get the bounding rect for the current tour step's target element. */
+        getTourRect() {
+            if (!this.tourActive) { this._tourRect = null; return null; }
+            var step = this._tourSteps[this.tourStep];
+            var el = document.querySelector(step.target);
+            if (!el) { this._tourRect = null; return null; }
+            var r = el.getBoundingClientRect();
+            this._tourRect = r;
+            return r;
+        },
+
+        /** Get the current tour step definition. */
+        getCurrentTourStep() {
+            if (!this.tourActive) return null;
+            return this._tourSteps[this.tourStep];
+        },
+
+        /** Check localStorage to show glow for first-time visitors. */
+        _initTourGlow() {
+            try {
+                if (!localStorage.getItem("clawback_toured")) {
+                    this._tourShowGlow = true;
+                }
+            } catch (e) {
+                this._tourShowGlow = false;
+            }
+        },
+
+        /** Dismiss the glow when user interacts with controls. */
+        _dismissGlow() {
+            this._tourShowGlow = false;
         },
 
         /** Open the artifact panel and pause playback. Disabled in edit mode. */

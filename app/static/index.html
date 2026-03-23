@@ -230,6 +230,16 @@
 
         <div class="toolbar__separator"></div>
 
+        <!-- Tour help button -->
+        <div class="toolbar__group">
+            <button class="toolbar__btn toolbar__btn--help"
+                    :class="{ 'toolbar__btn--glow': _tourShowGlow }"
+                    @click="startTour()"
+                    title="Take a tour">?</button>
+        </div>
+
+        <div class="toolbar__separator"></div>
+
         <!-- Progress bar and beat counter -->
         <div class="toolbar__group toolbar__group--progress">
             <div class="toolbar__bar">
@@ -337,6 +347,46 @@
          x-transition
          x-cloak
          x-text="editToast"></div>
+
+    <!-- Coachmark tour overlay -->
+    <template x-if="tourActive">
+        <div class="tour-overlay" @click="endTour()">
+            <div class="tour-spotlight"
+                 x-effect="$el.style.cssText = (function(r) {
+                     if (!r) return 'display:none';
+                     var p = 8;
+                     return 'left:' + (r.left - p) + 'px;top:' + (r.top - p) + 'px;width:' + (r.width + p*2) + 'px;height:' + (r.height + p*2) + 'px';
+                 })(getTourRect())"></div>
+            <div class="tour-tooltip" @click.stop
+                 x-effect="(function(r, step) {
+                     if (!r || !step) return;
+                     var tt = $el;
+                     var p = step.position;
+                     var cx = r.left + r.width / 2;
+                     var vw = window.innerWidth;
+                     var vh = window.innerHeight;
+                     var tw = Math.min(tt.offsetWidth || 320, 320);
+                     var left = Math.max(16 + tw / 2, Math.min(cx, vw - tw / 2 - 16));
+                     tt.style.left = left + 'px';
+                     if (p === 'top') {
+                         tt.style.top = Math.max(16, r.top - 16) + 'px';
+                         tt.style.transform = 'translate(-50%, -100%)';
+                     } else {
+                         tt.style.top = Math.min(vh - 16, r.bottom + 16) + 'px';
+                         tt.style.transform = 'translate(-50%, 0)';
+                     }
+                 })(_tourRect, getCurrentTourStep())">
+                <div class="tour-tooltip__title" x-text="getCurrentTourStep() ? getCurrentTourStep().title : ''"></div>
+                <div class="tour-tooltip__text" x-text="getCurrentTourStep() ? getCurrentTourStep().text : ''"></div>
+                <div class="tour-tooltip__nav">
+                    <button class="tour-tooltip__btn" @click="tourPrev()" :disabled="tourStep === 0">Back</button>
+                    <span class="tour-tooltip__dots" x-text="(tourStep + 1) + ' / ' + _tourSteps.length"></span>
+                    <button class="tour-tooltip__btn tour-tooltip__btn--primary" @click="tourNext()"
+                            x-text="tourStep === _tourSteps.length - 1 ? 'Done' : 'Next'"></button>
+                </div>
+            </div>
+        </div>
+    </template>
 
     <!-- Scroll-pause indicator -->
     <div class="scroll-pause-indicator"

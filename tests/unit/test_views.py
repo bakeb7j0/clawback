@@ -116,6 +116,9 @@ def test_index_has_toolbar(client):
     assert "speed-stepper" in html, "speed stepper container must be present"
     # Inner workings toggle
     assert "setInnerWorkingsMode" in html, "inner workings toggle must be present"
+    # Tour help button
+    assert "startTour()" in html, "tour help button must be present"
+    assert "toolbar__btn--help" in html, "help button class must be present"
     # Progress indicator
     assert "totalBeats" in html, "progress indicator must be present"
 
