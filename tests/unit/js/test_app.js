@@ -50,6 +50,9 @@ const { ClawbackAnnotations, ANNOTATION_COLORS } = require("../../../app/static/
 global.ClawbackAnnotations = ClawbackAnnotations;
 global.ANNOTATION_COLORS = ANNOTATION_COLORS;
 
+const { ClawbackSearch } = require("../../../app/static/js/search.js");
+global.ClawbackSearch = ClawbackSearch;
+
 // Mock save to prevent actual HTTP calls
 var saveCalls = 0;
 ClawbackAnnotations.save = function () { saveCalls++; return Promise.resolve(); };
@@ -2692,6 +2695,134 @@ test("startTour twice does not leak resize handlers", function () {
     assert.equal((_windowListeners.resize || []).length, 1, "only one resize listener should be registered");
     app.endTour();
     assert.equal((_windowListeners.resize || []).length, 0, "listener should be removed after endTour");
+});
+
+// ---------------------------------------------------------------------------
+// Search tests
+// ---------------------------------------------------------------------------
+
+test("searchOpen defaults to false", function () {
+    const app = makeApp(5);
+    assert.equal(app.searchOpen, false);
+});
+
+test("openSearch sets searchOpen and pauses playback", function () {
+    const app = makeApp(5);
+    app.$nextTick = function (fn) { fn.call(app); };
+    app.$refs = { searchInput: { focus: function () {} } };
+    app.playbackState = "PLAYING";
+    app.openSearch();
+    assert.equal(app.searchOpen, true);
+});
+
+test("closeSearch clears all search state", function () {
+    const app = makeApp(5);
+    app.searchOpen = true;
+    app.searchQuery = "test";
+    app.searchResults = [{ beatIndex: 0 }];
+    app.searchSelectedIndex = 0;
+    app.closeSearch();
+    assert.equal(app.searchOpen, false);
+    assert.equal(app.searchQuery, "");
+    assert.equal(app.searchResults.length, 0);
+    assert.equal(app.searchSelectedIndex, -1);
+});
+
+test("performSearch populates results from engine beats", function () {
+    const app = makeApp(5);
+    // Simulate engine with beats
+    app._engine = {
+        beats: [
+            { id: 0, type: "user_message", content: "hello world", category: "direct", group_id: null },
+            { id: 1, type: "assistant_message", content: "goodbye world", category: "direct", group_id: null },
+        ],
+        pause: function () {},
+        jumpToBeat: function () {},
+    };
+    app.searchQuery = "hello";
+    app.performSearch();
+    assert.equal(app.searchResults.length, 1);
+    assert.equal(app.searchResults[0].beatId, 0);
+    assert.equal(app.searchSelectedIndex, 0);
+});
+
+test("performSearch clears results for empty query", function () {
+    const app = makeApp(5);
+    app._engine = { beats: [{ id: 0, type: "user_message", content: "hello", category: "direct", group_id: null }] };
+    app.searchQuery = "";
+    app.performSearch();
+    assert.equal(app.searchResults.length, 0);
+    assert.equal(app.searchSelectedIndex, -1);
+});
+
+test("/ key opens search in playback view", function () {
+    const app = makeApp(5);
+    app.$nextTick = function (fn) { fn.call(app); };
+    app.$refs = { searchInput: { focus: function () {} } };
+    app.view = "playback";
+    var evt = makeKeyEvent("Slash");
+    app.handleKeydown(evt);
+    assert.equal(app.searchOpen, true);
+    assert.equal(evt.defaultPrevented, true);
+});
+
+test("Escape closes search when open", function () {
+    const app = makeApp(5);
+    app.view = "playback";
+    app.searchOpen = true;
+    app.handleKeydown(makeKeyEvent("Escape"));
+    assert.equal(app.searchOpen, false);
+});
+
+test("backToSessions clears search state", function () {
+    const app = makeApp(5);
+    app.searchOpen = true;
+    app.searchQuery = "test";
+    app.searchResults = [{ beatIndex: 0 }];
+    app.searchSelectedIndex = 0;
+    app.backToSessions();
+    assert.equal(app.searchOpen, false);
+    assert.equal(app.searchQuery, "");
+    assert.equal(app.searchResults.length, 0);
+    assert.equal(app.searchSelectedIndex, -1);
+});
+
+test("searchNext wraps around and jumps", function () {
+    const app = makeApp(5);
+    app.$nextTick = function (fn) { fn.call(app); };
+    app._engine = { beats: [], jumpToBeat: function () {}, pause: function () {} };
+    app.searchResults = [{ beatIndex: 0, beatId: 0 }, { beatIndex: 1, beatId: 1 }, { beatIndex: 2, beatId: 2 }];
+    app.searchSelectedIndex = 2;
+    app.searchNext();
+    assert.equal(app.searchSelectedIndex, 0);
+});
+
+test("searchPrev wraps around and jumps", function () {
+    const app = makeApp(5);
+    app.$nextTick = function (fn) { fn.call(app); };
+    app._engine = { beats: [], jumpToBeat: function () {}, pause: function () {} };
+    app.searchResults = [{ beatIndex: 0, beatId: 0 }, { beatIndex: 1, beatId: 1 }, { beatIndex: 2, beatId: 2 }];
+    app.searchSelectedIndex = 0;
+    app.searchPrev();
+    assert.equal(app.searchSelectedIndex, 2);
+});
+
+test("getSearchSnippet returns HTML with mark tag", function () {
+    const app = makeApp(5);
+    app.searchQuery = "hello";
+    var result = { content: "say hello world", beatIndex: 0 };
+    var html = app.getSearchSnippet(result);
+    assert.ok(html.indexOf("<mark>") !== -1, "should contain <mark> tag");
+    assert.ok(html.indexOf("hello") !== -1, "should contain match text");
+});
+
+test("getSearchSnippet escapes HTML in content", function () {
+    const app = makeApp(5);
+    app.searchQuery = "script";
+    var result = { content: "<script>alert('xss')</script>", beatIndex: 0 };
+    var html = app.getSearchSnippet(result);
+    assert.ok(html.indexOf("<script>") === -1, "should not contain raw <script> tag");
+    assert.ok(html.indexOf("&lt;") !== -1, "should escape angle brackets");
 });
 
 // ---------------------------------------------------------------------------

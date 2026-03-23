@@ -34,6 +34,11 @@ function clawbackApp() {
         _inlineEditor: null,
         _activeEditForm: null,
         _uploadForm: null,
+        searchOpen: false,
+        searchQuery: "",
+        searchResults: [],
+        searchSelectedIndex: -1,
+        _searchHighlightTimer: null,
         _engine: null,
         _scroller: null,
         _conversationBeatsRendered: 0,
@@ -79,6 +84,8 @@ function clawbackApp() {
             if (event.code === "Escape") {
                 if (this.tourActive) {
                     this.endTour();
+                } else if (this.searchOpen) {
+                    this.closeSearch();
                 } else if (this._activeEditForm) {
                     this._dismissEditForm();
                 } else if (this._sectionForm) {
@@ -93,6 +100,28 @@ function clawbackApp() {
                     this.closeArtifact();
                 }
                 return;
+            }
+
+            // Search input: arrow keys navigate results, Enter jumps
+            if (this.searchOpen && event.target === this.$refs.searchInput) {
+                if (event.code === "ArrowDown") {
+                    event.preventDefault();
+                    this.searchNext();
+                    return;
+                }
+                if (event.code === "ArrowUp") {
+                    event.preventDefault();
+                    this.searchPrev();
+                    return;
+                }
+                if (event.code === "Enter") {
+                    event.preventDefault();
+                    if (this.searchResults.length > 0 && this.searchSelectedIndex >= 0) {
+                        this.jumpToSearchResult(this.searchResults[this.searchSelectedIndex]);
+                    }
+                    return;
+                }
+                return; // Let other keys type into the search input
             }
 
             var tag = event.target.tagName;
@@ -119,6 +148,10 @@ function clawbackApp() {
                 case "ArrowDown":
                     event.preventDefault();
                     this.decreaseSpeed();
+                    break;
+                case "Slash":
+                    event.preventDefault();
+                    this.openSearch();
                     break;
             }
         },
@@ -298,6 +331,11 @@ function clawbackApp() {
             this._beatIdToMergedIndex = null;
             this.artifactOpen = false;
             this._currentArtifact = null;
+            this.searchOpen = false;
+            this.searchQuery = "";
+            this.searchResults = [];
+            this.searchSelectedIndex = -1;
+            this._clearSearchHighlight();
             this.editMode = false;
             this._contextMenu = null;
             this.editToast = "";
@@ -593,6 +631,136 @@ function clawbackApp() {
             if (panelContent) {
                 panelContent.innerHTML = "";
             }
+        },
+
+        // -------------------------------------------------------------------
+        // Search
+        // -------------------------------------------------------------------
+
+        /** Open the search sidebar and pause playback. */
+        openSearch() {
+            if (this.searchOpen) return;
+            if (this._engine && this.playbackState === "PLAYING") {
+                this._engine.pause();
+            }
+            this.searchOpen = true;
+            this.$nextTick(function () {
+                if (this.$refs.searchInput) this.$refs.searchInput.focus();
+            }.bind(this));
+        },
+
+        /** Close the search sidebar and clear state. */
+        closeSearch() {
+            this.searchOpen = false;
+            this.searchQuery = "";
+            this.searchResults = [];
+            this.searchSelectedIndex = -1;
+            this._clearSearchHighlight();
+        },
+
+        /** Run a search against the loaded beats. */
+        performSearch() {
+            if (!this.searchQuery.trim() || !this._engine) {
+                this.searchResults = [];
+                this.searchSelectedIndex = -1;
+                return;
+            }
+            if (typeof ClawbackSearch !== "undefined") {
+                this.searchResults = ClawbackSearch.search(
+                    this._engine.beats, this.searchQuery
+                );
+            }
+            this.searchSelectedIndex = this.searchResults.length > 0 ? 0 : -1;
+        },
+
+        /** Jump to a search result beat. */
+        jumpToSearchResult(result) {
+            if (!this._engine || !result) return;
+
+            // Resolve merged index — same pattern as jumpToSection.
+            // result.beatIndex is an index into _engine.beats (the merged array).
+            // When _beatIdToMergedIndex is null (no annotations), merged === original.
+            var mergedIndex = this._beatIdToMergedIndex
+                ? this._beatIdToMergedIndex[result.beatId]
+                : result.beatIndex;
+            if (mergedIndex === undefined) mergedIndex = result.beatIndex;
+
+            this._engine.jumpToBeat(mergedIndex + 1);
+            this.currentBeat = this._conversationBeatsRendered;
+            this._updateActiveSection();
+
+            // Auto-expand collapsed inner workings group if needed
+            this.$nextTick(function () {
+                var el = document.querySelector('[data-beat-id="' + result.beatId + '"]');
+                if (!el && result.groupId != null) {
+                    // Beat is inside a collapsed IW group — expand it
+                    var card = document.querySelector('[data-group-id="' + result.groupId + '"]');
+                    if (card && card.classList.contains("iw-card--collapsed")) {
+                        var toggle = card.querySelector(".iw-card__toggle");
+                        if (toggle) toggle.click();
+                    }
+                    el = document.querySelector('[data-beat-id="' + result.beatId + '"]');
+                }
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    this._applySearchHighlight(el);
+                } else if (this._scroller) {
+                    this._scroller.scrollToBottom();
+                }
+            }.bind(this));
+        },
+
+        /** Navigate to the next search result and jump to it. */
+        searchNext() {
+            if (this.searchResults.length === 0) return;
+            this.searchSelectedIndex = (this.searchSelectedIndex + 1) % this.searchResults.length;
+            this.jumpToSearchResult(this.searchResults[this.searchSelectedIndex]);
+        },
+
+        /** Navigate to the previous search result and jump to it. */
+        searchPrev() {
+            if (this.searchResults.length === 0) return;
+            this.searchSelectedIndex = (this.searchSelectedIndex - 1 + this.searchResults.length) % this.searchResults.length;
+            this.jumpToSearchResult(this.searchResults[this.searchSelectedIndex]);
+        },
+
+        /** Get an HTML snippet with match highlighted for a search result. */
+        getSearchSnippet(result) {
+            if (typeof ClawbackSearch === "undefined") return "";
+            var s = ClawbackSearch.snippet(result.content, this.searchQuery);
+            if (!s) return "";
+            var esc = function (t) {
+                return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            };
+            return esc(s.before) + "<mark>" + esc(s.match) + "</mark>" + esc(s.after);
+        },
+
+        /** Get the icon for a beat type. */
+        getBeatTypeIcon(type) {
+            if (typeof ClawbackSearch !== "undefined") {
+                return ClawbackSearch.beatTypeIcon(type);
+            }
+            return "\u2022";
+        },
+
+        /** Apply a temporary highlight to a DOM element. */
+        _applySearchHighlight(el) {
+            this._clearSearchHighlight();
+            el.classList.add("search-highlight");
+            this._searchHighlightTimer = setTimeout(function () {
+                el.classList.remove("search-highlight");
+                this._searchHighlightTimer = null;
+            }.bind(this), 1500);
+        },
+
+        /** Clear any active search highlight. */
+        _clearSearchHighlight() {
+            if (this._searchHighlightTimer) {
+                clearTimeout(this._searchHighlightTimer);
+                this._searchHighlightTimer = null;
+            }
+            var highlighted = document.querySelector(".search-highlight");
+            if (highlighted) highlighted.classList.remove("search-highlight");
         },
 
         /** Toggle annotation editing mode. */
@@ -1606,6 +1774,7 @@ function clawbackApp() {
                 for (var j = 0; j < annotations.length; j++) {
                     if (annotations[j].type === "callout") {
                         var callout = annotations[j].data;
+                        var calloutBeatId = "callout-" + callout.id;
                         merged.push({
                             type: "callout",
                             category: "callout",
@@ -1613,12 +1782,14 @@ function clawbackApp() {
                             calloutStyle: callout.style || "note",
                             content: callout.content || "",
                             calloutId: callout.id,
-                            id: "callout-" + callout.id,
+                            id: calloutBeatId,
                             duration: this._calculateCalloutDuration(callout.content),
                             group_id: null,
                         });
+                        indexMap[calloutBeatId] = merged.length - 1;
                     } else if (annotations[j].type === "artifact") {
                         var artifact = annotations[j].data;
+                        var artifactBeatId = "artifact-" + artifact.id;
                         merged.push({
                             type: "artifact",
                             category: "artifact",
@@ -1629,12 +1800,13 @@ function clawbackApp() {
                             contentType: artifact.content_type || "markdown",
                             content: (artifact.title || "") + " " + (artifact.description || ""),
                             artifactId: artifact.id,
-                            id: "artifact-" + artifact.id,
+                            id: artifactBeatId,
                             duration: this._calculateCalloutDuration(
                                 (artifact.title || "") + " " + (artifact.description || "")
                             ),
                             group_id: null,
                         });
+                        indexMap[artifactBeatId] = merged.length - 1;
                     }
                 }
             }

@@ -15,6 +15,7 @@ def test_index_loads_all_required_scripts(client):
     assert "playback.js" in html, "playback.js must be loaded"
     assert "renderer.js" in html, "renderer.js must be loaded"
     assert "scroller.js" in html, "scroller.js must be loaded"
+    assert "search.js" in html, "search.js must be loaded"
     assert "app.js" in html, "app.js must be loaded"
     assert "alpinejs" in html, "Alpine.js must be loaded"
     assert "marked" in html, "marked.js must be loaded"
@@ -39,6 +40,8 @@ def test_index_script_load_order(client):
             return "renderer"
         if "scroller.js" in src:
             return "scroller"
+        if "search.js" in src:
+            return "search"
         if "app.js" in src:
             return "app"
         if "alpinejs" in src:
@@ -72,6 +75,9 @@ def test_index_script_load_order(client):
     )
     assert order.index("scroller") < order.index("app"), (
         "scroller.js must load before app.js"
+    )
+    assert order.index("search") < order.index("app"), (
+        "search.js must load before app.js"
     )
     assert order.index("app") < order.index("alpine"), (
         "app.js must load before Alpine.js"
@@ -119,6 +125,9 @@ def test_index_has_toolbar(client):
     # Tour help button
     assert "startTour()" in html, "tour help button must be present"
     assert "toolbar__btn--help" in html, "help button class must be present"
+    # Search button
+    assert "openSearch" in html, "search button must be present"
+    assert "closeSearch" in html, "search close must be present"
     # Progress indicator
     assert "totalBeats" in html, "progress indicator must be present"
 
