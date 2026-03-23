@@ -40,8 +40,8 @@ function clawbackApp() {
         tourActive: false,
         tourStep: 0,
         _tourSteps: [
-            { target: ".toolbar__group:first-child", title: "Transport Controls", text: "Play, pause, skip forward/back, and jump to start or end. These control the beat-by-beat playback of the session.", position: "top" },
-            { target: ".speed-stepper", title: "Speed Control", text: "Adjust playback speed from 0.5x to 4.0x. Slower speeds give you time to read dense content; faster speeds let you skim.", position: "top" },
+            { target: ".toolbar__group:first-child", title: "Transport Controls", text: "Play, pause, skip forward/back, and jump to start or end. Keyboard: Space to play/pause, Left/Right arrows to step through beats.", position: "top" },
+            { target: ".speed-stepper", title: "Speed Control", text: "Adjust playback speed from 0.5x to 4.0x. Keyboard: Up/Down arrows. Slower speeds give you time to read dense content; faster speeds let you skim.", position: "top" },
             { target: ".toolbar__label", title: "Inner Workings", text: "Toggle between Collapsed and Expanded to show or hide the AI's thinking, tool calls, and tool results. Collapsed gives a clean chat view.", position: "top" },
             { target: ".chat-area", title: "Chat Area", text: "Messages appear here as the session plays back. User messages are on the right, assistant messages on the left. Click any beat in edit mode to add annotations.", position: "bottom" },
             { target: ".toolbar__group--progress", title: "Progress Bar", text: "Shows your position in the session. The colored segments represent sections defined by the instructor. The beat counter shows your exact position.", position: "top" },
@@ -101,6 +101,14 @@ function clawbackApp() {
                 case "ArrowRight":
                     event.preventDefault();
                     this.nextBeat();
+                    break;
+                case "ArrowUp":
+                    event.preventDefault();
+                    this.increaseSpeed();
+                    break;
+                case "ArrowDown":
+                    event.preventDefault();
+                    this.decreaseSpeed();
                     break;
             }
         },
