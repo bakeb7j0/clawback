@@ -45,7 +45,7 @@
                     <div class="section-sidebar__item"
                          :class="{ 'section-sidebar__item--active': activeSection && activeSection.id === section.id }"
                          @click="jumpToSection(section)"
-                         :style="'border-left-color:' + getSectionColor(section.color)">
+                         :style="'--section-color:' + getSectionColor(section.color)">
                         <span class="section-sidebar__label" x-text="section.label"></span>
                         <span class="section-sidebar__range"
                               x-text="'Beats ' + (section.start_beat + 1) + '\u2013' + (section.end_beat + 1)"></span>
