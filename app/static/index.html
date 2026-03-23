@@ -16,6 +16,7 @@
     <script defer src="/static/js/renderer.js"></script>
     <script defer src="/static/js/scroller.js"></script>
     <script defer src="/static/js/annotations.js"></script>
+    <script defer src="/static/js/search.js"></script>
     <script defer src="/static/js/app.js"></script>
     <!-- Alpine.js MUST be last — defer scripts execute in order, and Alpine
          needs clawbackApp() to be defined before it initializes -->
@@ -55,6 +56,47 @@
                                 title="Delete section">&times;</button>
                     </div>
                 </template>
+            </div>
+        </aside>
+
+        <!-- Search sidebar -->
+        <aside class="search-sidebar"
+               x-show="view === 'playback' && searchOpen"
+               x-transition.opacity.duration.200ms
+               x-cloak>
+            <div class="search-sidebar__header">
+                <span class="search-sidebar__title">Search</span>
+                <button class="search-sidebar__close" @click="closeSearch()" title="Close search">&times;</button>
+            </div>
+            <div class="search-sidebar__input-wrap">
+                <input class="search-sidebar__input"
+                       type="text"
+                       x-model="searchQuery"
+                       @input="performSearch()"
+                       placeholder="Search beats..."
+                       x-ref="searchInput">
+            </div>
+            <div class="search-sidebar__count"
+                 x-show="searchQuery.length > 0"
+                 x-text="searchResults.length + ' result' + (searchResults.length !== 1 ? 's' : '')"></div>
+            <div class="search-sidebar__results">
+                <template x-for="(result, idx) in searchResults" :key="result.beatIndex">
+                    <div class="search-sidebar__result"
+                         :class="{ 'search-sidebar__result--active': searchSelectedIndex === idx }"
+                         @click="searchSelectedIndex = idx; jumpToSearchResult(result)">
+                        <div class="search-sidebar__result-header">
+                            <span class="search-sidebar__result-icon" x-text="getBeatTypeIcon(result.type)"></span>
+                            <span class="search-sidebar__result-type" x-text="result.type.replace(/_/g, ' ')"></span>
+                            <span class="search-sidebar__result-beat"
+                                  x-text="'#' + (typeof result.beatId === 'number' ? result.beatId + 1 : result.beatId)"></span>
+                        </div>
+                        <div class="search-sidebar__result-snippet" x-html="getSearchSnippet(result)"></div>
+                    </div>
+                </template>
+                <div class="search-sidebar__empty"
+                     x-show="searchQuery.length > 0 && searchResults.length === 0">
+                    No matches found.
+                </div>
             </div>
         </aside>
 
@@ -236,6 +278,16 @@
                     :class="{ 'toolbar__btn--glow': _tourShowGlow }"
                     @click="startTour()"
                     title="Take a tour">?</button>
+        </div>
+
+        <div class="toolbar__separator"></div>
+
+        <!-- Search toggle -->
+        <div class="toolbar__group">
+            <button class="toolbar__btn toolbar__btn--iw"
+                    :class="{ 'toolbar__btn--active': searchOpen }"
+                    @click="searchOpen ? closeSearch() : openSearch()"
+                    title="Search (/)">&#128269; Search</button>
         </div>
 
         <div class="toolbar__separator"></div>
