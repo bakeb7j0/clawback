@@ -80,6 +80,32 @@ global.document = {
         };
         return el;
     },
+    querySelector: function () { return null; },
+};
+
+// window mock for resize event handling
+var _windowListeners = {};
+global.window = {
+    innerWidth: 1280,
+    innerHeight: 800,
+    addEventListener: function (evt, fn) {
+        if (!_windowListeners[evt]) _windowListeners[evt] = [];
+        _windowListeners[evt].push(fn);
+    },
+    removeEventListener: function (evt, fn) {
+        if (_windowListeners[evt]) {
+            _windowListeners[evt] = _windowListeners[evt].filter(function (f) { return f !== fn; });
+        }
+    },
+};
+
+// localStorage mock
+var _lsStore = {};
+global.localStorage = {
+    getItem: function (k) { return _lsStore[k] || null; },
+    setItem: function (k, v) { _lsStore[k] = String(v); },
+    removeItem: function (k) { delete _lsStore[k]; },
+    clear: function () { _lsStore = {}; },
 };
 
 const { clawbackApp } = require("../../../app/static/js/app.js");
@@ -2473,6 +2499,157 @@ test("Escape in picker view is no-op when no upload form open", function () {
 test("_uploadForm defaults to null", function () {
     var app = makeApp();
     assert.equal(app._uploadForm, null);
+});
+
+// ---------------------------------------------------------------------------
+// Tour (coachmarks)
+// ---------------------------------------------------------------------------
+console.log("\nTour");
+
+test("startTour sets tourActive and tourStep", function () {
+    var app = makeApp(5);
+    app.startTour();
+    assert.equal(app.tourActive, true);
+    assert.equal(app.tourStep, 0);
+});
+
+test("tourNext advances step", function () {
+    var app = makeApp(5);
+    app.startTour();
+    app.tourNext();
+    assert.equal(app.tourStep, 1);
+});
+
+test("tourNext on last step ends tour", function () {
+    var app = makeApp(5);
+    app.startTour();
+    app.tourStep = app._tourSteps.length - 1;
+    app.tourNext();
+    assert.equal(app.tourActive, false);
+});
+
+test("tourPrev goes back", function () {
+    var app = makeApp(5);
+    app.startTour();
+    app.tourNext();
+    app.tourNext();
+    app.tourPrev();
+    assert.equal(app.tourStep, 1);
+});
+
+test("tourPrev does not go below 0", function () {
+    var app = makeApp(5);
+    app.startTour();
+    app.tourPrev();
+    assert.equal(app.tourStep, 0);
+});
+
+test("endTour sets tourActive false", function () {
+    var app = makeApp(5);
+    app.startTour();
+    app.endTour();
+    assert.equal(app.tourActive, false);
+});
+
+test("startTour sets localStorage flag", function () {
+    localStorage.clear();
+    var app = makeApp(5);
+    app.startTour();
+    assert.equal(localStorage.getItem("clawback_toured"), "1");
+});
+
+test("startTour dismisses glow", function () {
+    var app = makeApp(5);
+    app._tourShowGlow = true;
+    app.startTour();
+    assert.equal(app._tourShowGlow, false);
+});
+
+test("_initTourGlow sets glow when no localStorage flag", function () {
+    localStorage.clear();
+    var app = makeApp(5);
+    app._initTourGlow();
+    assert.equal(app._tourShowGlow, true);
+});
+
+test("_initTourGlow does not set glow when flag exists", function () {
+    localStorage.setItem("clawback_toured", "1");
+    var app = makeApp(5);
+    app._initTourGlow();
+    assert.equal(app._tourShowGlow, false);
+});
+
+test("_dismissGlow clears glow", function () {
+    var app = makeApp(5);
+    app._tourShowGlow = true;
+    app._dismissGlow();
+    assert.equal(app._tourShowGlow, false);
+});
+
+test("getCurrentTourStep returns null when tour inactive", function () {
+    var app = makeApp(5);
+    assert.equal(app.getCurrentTourStep(), null);
+});
+
+test("getCurrentTourStep returns step when active", function () {
+    var app = makeApp(5);
+    app.startTour();
+    var step = app.getCurrentTourStep();
+    assert.equal(step.title, "Transport Controls");
+});
+
+test("tour has 5 steps", function () {
+    var app = makeApp(5);
+    assert.equal(app._tourSteps.length, 5);
+});
+
+test("Escape key closes tour", function () {
+    var app = makeApp(5);
+    app.view = "playback";
+    app.startTour();
+    assert.equal(app.tourActive, true);
+    app.handleKeydown({ code: "Escape", target: { tagName: "DIV" } });
+    assert.equal(app.tourActive, false);
+});
+
+test("startTour closes artifact panel", function () {
+    var app = makeApp(5);
+    app.artifactOpen = true;
+    app.startTour();
+    assert.equal(app.artifactOpen, false);
+});
+
+test("startTour dismisses context menu", function () {
+    var app = makeApp(5);
+    app._contextMenu = { x: 10, y: 10, items: [] };
+    app.startTour();
+    assert.equal(app._contextMenu, null);
+});
+
+test("getTourRect returns null for missing target element", function () {
+    var app = makeApp(5);
+    app.startTour();
+    // querySelector mock returns null for unknown selectors
+    var rect = app.getTourRect();
+    assert.equal(rect, null);
+});
+
+test("endTour removes resize handler", function () {
+    var app = makeApp(5);
+    app.startTour();
+    assert.notEqual(app._tourResizeHandler, null);
+    app.endTour();
+    assert.equal(app._tourResizeHandler, null);
+});
+
+test("startTour twice does not leak resize handlers", function () {
+    _windowListeners = {};
+    var app = makeApp(5);
+    app.startTour();
+    app.startTour();
+    assert.equal((_windowListeners.resize || []).length, 1, "only one resize listener should be registered");
+    app.endTour();
+    assert.equal((_windowListeners.resize || []).length, 0, "listener should be removed after endTour");
 });
 
 // ---------------------------------------------------------------------------

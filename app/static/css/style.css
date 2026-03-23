@@ -1692,3 +1692,107 @@ body {
     color: var(--color-text);
     border-color: var(--color-text-muted);
 }
+
+/* -----------------------------------------------------------------------
+   Coachmark tour
+   ----------------------------------------------------------------------- */
+.toolbar__btn--help {
+    font-weight: 700;
+    font-size: 0.9rem;
+    min-width: 28px;
+}
+
+.toolbar__btn--glow {
+    animation: help-glow 2s ease-in-out infinite;
+}
+
+@keyframes help-glow {
+    0%, 100% { box-shadow: 0 0 4px rgba(233, 69, 96, 0.3); }
+    50% { box-shadow: 0 0 12px rgba(233, 69, 96, 0.7), 0 0 24px rgba(233, 69, 96, 0.3); }
+}
+
+.tour-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 100;
+}
+
+.tour-spotlight {
+    position: fixed;
+    border-radius: 8px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+    background-color: transparent;
+    z-index: 101;
+    pointer-events: none;
+    transition: left 0.3s, top 0.3s, width 0.3s, height 0.3s;
+}
+
+.tour-tooltip {
+    position: fixed;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    max-width: 320px;
+    z-index: 102;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.tour-tooltip__title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    margin-bottom: 6px;
+}
+
+.tour-tooltip__text {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin-bottom: 14px;
+}
+
+.tour-tooltip__nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tour-tooltip__dots {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
+.tour-tooltip__btn {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: inherit;
+    background: none;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.tour-tooltip__btn:hover:not(:disabled) {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+.tour-tooltip__btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.tour-tooltip__btn--primary {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+}
+
+.tour-tooltip__btn--primary:hover:not(:disabled) {
+    background-color: var(--color-accent-hover);
+    color: #fff;
+}
