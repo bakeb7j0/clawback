@@ -88,6 +88,9 @@ def test_index_has_session_picker(client):
     assert "backToSessions" in html, "back button must be present"
     assert "handleFileUpload" in html, "file upload handler must be present"
     assert "handleFileDrop" in html, "drag-and-drop handler must be present"
+    # Hero card
+    assert 'class="hero"' in html, "hero card must be present"
+    assert "curated session" in html.lower(), "hero must mention curated sessions"
 
 
 def test_index_has_keyboard_shortcut_binding(client):

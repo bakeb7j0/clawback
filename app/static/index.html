@@ -75,6 +75,15 @@
 
                 <!-- Session picker content -->
                 <div class="picker" x-show="!loadingSessions && !loadingSession">
+                    <!-- Hero card -->
+                    <div class="hero">
+                        <p class="hero__tagline">Watch how AI-assisted development actually works.</p>
+                        <ul class="hero__actions" role="list">
+                            <li><strong>Play a curated session</strong> &mdash; pick one below to see a real context engineering workflow</li>
+                            <li><strong>Upload your own</strong> &mdash; drop a Claude Code <code>.jsonl</code> file to replay any session</li>
+                        </ul>
+                    </div>
+
                     <!-- Session grid -->
                     <div class="picker__grid">
                         <template x-for="session in sessions" :key="session.id">
