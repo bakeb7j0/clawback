@@ -296,3 +296,102 @@ def test_upload_session_invalid_title_produces_empty_slug(tmp_client):
     )
     assert response.status_code == 400
     assert "invalid ID" in response.json["message"]
+
+
+# --- Read-only mode tests ---
+
+
+def test_config_endpoint_returns_read_only_false(client):
+    """GET /api/config returns readOnly=false by default."""
+    response = client.get("/api/config")
+    assert response.status_code == 200
+    assert response.json["readOnly"] is False
+
+
+def test_config_endpoint_returns_read_only_true():
+    """GET /api/config returns readOnly=true when configured."""
+    app = create_app({"TESTING": True, "CLAWBACK_READ_ONLY": True})
+    response = app.test_client().get("/api/config")
+    assert response.status_code == 200
+    assert response.json["readOnly"] is True
+
+
+def test_annotations_put_blocked_when_read_only(tmp_path):
+    """PUT annotations returns 403 in read-only mode."""
+    jsonl = (
+        '{"type":"user","message":{"content":"hello"},'
+        '"uuid":"u1","parentUuid":null,"timestamp":"2026-01-01T00:00:00Z"}\n'
+        '{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]},'
+        '"uuid":"a1","parentUuid":"u1","timestamp":"2026-01-01T00:00:01Z"}\n'
+    )
+    (tmp_path / "test-session.jsonl").write_text(jsonl)
+    manifest = [
+        {"id": "test-session", "title": "Test", "file": "test-session.jsonl",
+         "beat_count": 2, "description": "A test", "tags": []},
+    ]
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+
+    app = create_app({
+        "TESTING": True, "CLAWBACK_READ_ONLY": True,
+        "SESSIONS_DIR": str(tmp_path),
+    })
+    client = app.test_client()
+    response = client.put(
+        "/api/sessions/test-session/annotations",
+        json={"sections": [], "callouts": [], "artifacts": []},
+    )
+    assert response.status_code == 403
+    assert "Read-only" in response.json["message"]
+
+
+def test_upload_blocked_when_read_only(tmp_path):
+    """POST upload returns 403 in read-only mode."""
+    (tmp_path / "manifest.json").write_text("[]")
+    app = create_app({
+        "TESTING": True, "CLAWBACK_READ_ONLY": True,
+        "SESSIONS_DIR": str(tmp_path),
+    })
+    client = app.test_client()
+    jsonl = (
+        '{"type":"user","message":{"content":"hi"},'
+        '"uuid":"u1","parentUuid":null,"timestamp":"2026-01-01T00:00:00Z"}\n'
+    )
+    data = {
+        "file": (io.BytesIO(jsonl.encode()), "test.jsonl"),
+        "title": "My Session",
+    }
+    response = client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert response.status_code == 403
+    assert "Read-only" in response.json["message"]
+
+
+def test_annotations_put_allowed_when_not_read_only(tmp_client):
+    """PUT annotations works normally when read-only is not set."""
+    response = tmp_client.put(
+        "/api/sessions/test-session/annotations",
+        json={
+            "session_id": "test-session",
+            "sections": [], "callouts": [], "artifacts": [],
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_upload_allowed_when_not_read_only(tmp_client):
+    """POST upload works normally when read-only is not set."""
+    jsonl = (
+        '{"type":"user","message":{"content":"hello"},'
+        '"uuid":"u1","parentUuid":null,"timestamp":"2026-01-01T00:00:00Z"}\n'
+        '{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]},'
+        '"uuid":"a1","parentUuid":"u1","timestamp":"2026-01-01T00:00:01Z"}\n'
+    )
+    data = {
+        "file": (io.BytesIO(jsonl.encode()), "test.jsonl"),
+        "title": "Upload Test",
+    }
+    response = tmp_client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert response.status_code == 201
