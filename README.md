@@ -1,12 +1,31 @@
 # Clawback
 
-A web-based session replay tool for Claude Code. Clawback transforms Claude Code session logs (`.jsonl` files) into an interactive chat-bubble playback experience, letting developers observe AI-assisted development workflows at a comfortable reading pace.
+A web-based session replay tool for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+
+## What is Clawback?
+
+Clawback transforms Claude Code session logs (`.jsonl` files) into an interactive chat-bubble playback experience. Think of it as a "game replay" for AI-assisted development — you can watch an entire coding session unfold beat by beat, at a comfortable reading pace, with full visibility into the AI's thinking, tool calls, and decisions.
+
+### Why does this exist?
+
+Working with AI coding agents effectively is a skill. The way you structure your instructions, manage context, and guide the conversation has a direct impact on the quality of the output. This is **context engineering** — and it's hard to teach from slides alone.
+
+Clawback exists so that developers can **watch real sessions** where context engineering techniques are applied in practice. Instead of reading about prompt design in the abstract, you can observe an actual multi-hour development workflow: how the human breaks down a problem, how the AI responds, where things go well, and where they don't.
+
+### How it works
+
+1. **Record** — Claude Code already writes a `.jsonl` log of every session. That's your raw material.
+2. **Load** — Drop the file into Clawback (drag-and-drop upload) or add it as a curated session with metadata.
+3. **Replay** — Clawback parses the log into a sequence of "beats" (individual messages, tool calls, results) and plays them back as timed chat bubbles. You control the pace with play/pause, skip, and speed controls.
+4. **Learn** — Expand the AI's inner workings (thinking blocks, tool calls, and their results) to understand *why* it made each decision. Use the section navigator to jump between phases of the conversation. Search across all beats to find specific topics.
+
+Clawback ships with curated example sessions that demonstrate context engineering workflows from start to finish — but you can also upload any Claude Code session log to replay your own work or share it with your team.
 
 ## Features
 
 - **Timed playback** — beats render at a reading-speed pace with play/pause, skip, and speed controls
 - **Inner workings** — expand or collapse the AI's thinking, tool calls, and results
-- **Keyboard shortcuts** — Space (play/pause), arrow keys (step through beats)
+- **Keyboard shortcuts** — Space (play/pause), Left/Right (step through beats), Up/Down (speed)
 - **Markdown rendering** — assistant messages render with syntax-highlighted code blocks
 - **Auto-scroll with scroll-pause** — scrolling back pauses playback; click to resume
 - **File upload** — drag-and-drop or browse to load any `.jsonl` session file
