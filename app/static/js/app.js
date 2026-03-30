@@ -9,7 +9,7 @@ function clawbackApp() {
         sessionName: "",
         view: "picker", // "picker" or "playback"
         playbackState: "READY",
-        showBeatNumbers: false,
+        showBeatNumbers: true,
         currentBeat: 0,
         totalBeats: 0,
         speed: 1.0,

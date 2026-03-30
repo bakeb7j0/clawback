@@ -2899,6 +2899,24 @@ test("_handleDeepLink does nothing when _deepLinkId is null", function () {
 });
 
 // ---------------------------------------------------------------------------
+// Beat numbers
+// ---------------------------------------------------------------------------
+
+test("showBeatNumbers defaults to true", function () {
+    var app = makeApp(5);
+    assert.equal(app.showBeatNumbers, true);
+});
+
+test("beat number toggle flips state", function () {
+    var app = makeApp(5);
+    assert.equal(app.showBeatNumbers, true);
+    app.showBeatNumbers = !app.showBeatNumbers;
+    assert.equal(app.showBeatNumbers, false);
+    app.showBeatNumbers = !app.showBeatNumbers;
+    assert.equal(app.showBeatNumbers, true);
+});
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);

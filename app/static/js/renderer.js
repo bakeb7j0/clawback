@@ -30,6 +30,55 @@ const _activeGroups = new Map();
 var _defaultExpanded = false;
 
 /**
+ * Transforms Claude Code serialization tags in user message content into
+ * clean plain text. Handles slash commands, local command output, and
+ * system reminders. Returns the original text unchanged if no tags found.
+ */
+function _formatUserContent(text) {
+    if (!text) return "";
+
+    // Strip <system-reminder>...</system-reminder> blocks (may span lines)
+    var result = text.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "");
+
+    // Strip <local-command-caveat>...</local-command-caveat> boilerplate
+    result = result.replace(/<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g, "");
+
+    // Transform <local-command-stdout>...</local-command-stdout> — extract and clean
+    result = result.replace(/<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/g, function (_, inner) {
+        // Strip ANSI escape codes
+        var cleaned = inner.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
+        return cleaned.trim();
+    });
+
+    // Transform slash command tags into clean text
+    if (result.indexOf("<command-name>") !== -1) {
+        var cmdName = "";
+        var cmdArgs = "";
+        var match;
+
+        match = result.match(/<command-name>([\s\S]*?)<\/command-name>/);
+        if (match) cmdName = match[1].trim();
+
+        match = result.match(/<command-args>([\s\S]*?)<\/command-args>/);
+        if (match) cmdArgs = match[1].trim();
+
+        // Strip all three command tags
+        result = result.replace(/<command-name>[\s\S]*?<\/command-name>/g, "");
+        result = result.replace(/<command-message>[\s\S]*?<\/command-message>/g, "");
+        result = result.replace(/<command-args>[\s\S]*?<\/command-args>/g, "");
+
+        // Build clean command text
+        var cmd = cmdName;
+        if (cmdArgs) cmd += " " + cmdArgs;
+        result = cmd + result;
+    }
+
+    // Collapse runs of whitespace left by stripped tags
+    result = result.replace(/[ \t]+/g, " ");
+    return result.trim();
+}
+
+/**
  * Renders a beat and appends it to the container.
  *
  * Direct-category beats become chat bubbles. Inner working beats are
@@ -62,7 +111,9 @@ function renderBeat(beat, container) {
 
     if (beat.type === "user_message") {
         bubble.classList.add("bubble--user");
-        bubble.textContent = beat.content;
+        var formatted = _formatUserContent(beat.content);
+        if (!formatted) return null;
+        bubble.textContent = formatted;
     } else {
         bubble.classList.add("bubble--assistant");
         bubble.innerHTML = DOMPurify.sanitize(marked.parse(beat.content));
@@ -446,5 +497,6 @@ if (typeof module !== "undefined" && module.exports) {
         toggleAllInnerWorkings,
         resetGroups,
         renderArtifactPanel,
+        _formatUserContent,
     };
 }
