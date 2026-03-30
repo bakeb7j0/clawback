@@ -1,9 +1,11 @@
 import io
 import json
+import time
 
 import pytest
 
 from app import create_app
+from app.services.session_cache import SessionCache
 
 
 @pytest.fixture()
@@ -395,3 +397,134 @@ def test_upload_allowed_when_not_read_only(tmp_client):
         "/api/sessions/upload", data=data, content_type="multipart/form-data",
     )
     assert response.status_code == 201
+
+
+# --- Ephemeral upload tests ---
+
+_VALID_JSONL = (
+    '{"type":"user","message":{"content":"hello"},'
+    '"uuid":"u1","parentUuid":null,"timestamp":"2026-01-01T00:00:00Z"}\n'
+    '{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]},'
+    '"uuid":"a1","parentUuid":"u1","timestamp":"2026-01-01T00:00:01Z"}\n'
+)
+
+
+def _ephemeral_upload(client, title="Ephemeral Session", ephemeral="true"):
+    """Helper to upload with the ephemeral flag."""
+    data = {
+        "file": (io.BytesIO(_VALID_JSONL.encode()), "eph.jsonl"),
+        "title": title,
+        "ephemeral": ephemeral,
+    }
+    return client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+
+
+def test_upload_ephemeral_returns_201(tmp_client):
+    """Ephemeral upload succeeds and returns session entry."""
+    response = _ephemeral_upload(tmp_client)
+    assert response.status_code == 201
+    assert response.json["status"] == "ok"
+    assert response.json["session"]["id"] == "ephemeral-session"
+
+
+def test_upload_ephemeral_not_in_session_list(tmp_client):
+    """Ephemeral session does not appear in GET /api/sessions."""
+    _ephemeral_upload(tmp_client)
+    response = tmp_client.get("/api/sessions")
+    ids = [s["id"] for s in response.json["sessions"]]
+    assert "ephemeral-session" not in ids
+
+
+def test_upload_ephemeral_accessible_by_id(tmp_client):
+    """Ephemeral session is loadable via GET /api/sessions/<id>."""
+    _ephemeral_upload(tmp_client)
+    response = tmp_client.get("/api/sessions/ephemeral-session")
+    assert response.status_code == 200
+    assert len(response.json["beats"]) > 0
+    assert response.json["title"] == "Ephemeral Session"
+
+
+def test_upload_ephemeral_no_disk_write(tmp_client, tmp_path):
+    """Ephemeral upload does not write .jsonl to disk."""
+    # tmp_client uses tmp_path as sessions_dir from the fixture
+    _ephemeral_upload(tmp_client)
+    jsonl_files = list(tmp_path.glob("ephemeral*.jsonl"))
+    assert len(jsonl_files) == 0
+
+
+def test_upload_ephemeral_no_manifest_update(tmp_client, tmp_path):
+    """Ephemeral upload does not modify manifest.json."""
+    manifest_before = (tmp_path / "manifest.json").read_text()
+    _ephemeral_upload(tmp_client)
+    manifest_after = (tmp_path / "manifest.json").read_text()
+    assert manifest_before == manifest_after
+
+
+def test_upload_ephemeral_allowed_in_read_only(tmp_path):
+    """Ephemeral upload succeeds even when CLAWBACK_READ_ONLY=true."""
+    (tmp_path / "manifest.json").write_text("[]")
+    app = create_app({
+        "TESTING": True, "CLAWBACK_READ_ONLY": True,
+        "SESSIONS_DIR": str(tmp_path),
+    })
+    client = app.test_client()
+    response = _ephemeral_upload(client)
+    assert response.status_code == 201
+
+
+def test_upload_curated_blocked_in_read_only(tmp_path):
+    """Curated (non-ephemeral) upload still returns 403 in read-only mode."""
+    (tmp_path / "manifest.json").write_text("[]")
+    app = create_app({
+        "TESTING": True, "CLAWBACK_READ_ONLY": True,
+        "SESSIONS_DIR": str(tmp_path),
+    })
+    client = app.test_client()
+    data = {
+        "file": (io.BytesIO(_VALID_JSONL.encode()), "test.jsonl"),
+        "title": "Curated Session",
+    }
+    response = client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert response.status_code == 403
+
+
+def test_upload_default_is_not_ephemeral(tmp_client, tmp_path):
+    """Upload without ephemeral field writes to disk (backwards compat)."""
+    data = {
+        "file": (io.BytesIO(_VALID_JSONL.encode()), "test.jsonl"),
+        "title": "Persisted Upload",
+    }
+    tmp_client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert (tmp_path / "persisted-upload.jsonl").exists()
+
+
+def test_upload_ephemeral_duplicate_id_rejected(tmp_client):
+    """Duplicate ID across ephemeral+curated returns 400."""
+    _ephemeral_upload(tmp_client, title="Ephemeral Dup")
+    response = _ephemeral_upload(tmp_client, title="Ephemeral Dup")
+    assert response.status_code == 400
+    assert "already exists" in response.json["message"]
+
+
+def test_sweep_ephemeral_removes_expired(tmp_path):
+    """sweep_ephemeral() removes sessions past TTL."""
+    cache = SessionCache()
+    cache.add_ephemeral("old", {"title": "old"}, [{"id": 1}])
+    # Backdate the created_at
+    cache._ephemeral["old"]["created_at"] = time.time() - 10000
+    cache.sweep_ephemeral(5000)
+    assert cache.get_session("old") is None
+
+
+def test_sweep_ephemeral_keeps_fresh(tmp_path):
+    """sweep_ephemeral() preserves sessions within TTL."""
+    cache = SessionCache()
+    cache.add_ephemeral("fresh", {"title": "fresh"}, [{"id": 1}])
+    cache.sweep_ephemeral(5000)
+    assert cache.get_session("fresh") is not None

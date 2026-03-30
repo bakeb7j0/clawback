@@ -56,10 +56,24 @@ function clawbackApp() {
         _tourRect: null,
         _tourResizeHandler: null,
 
+        _deepLinkId: null,
+        _deepLinkAutoplay: false,
+
         /** Called by Alpine.js on component initialization. */
         init() {
             this.fetchConfig();
+            this._checkDeepLink();
             this.fetchSessions();
+        },
+
+        /** Check URL for deep-link parameters (?session=ID&autoplay=true). */
+        _checkDeepLink() {
+            var params = new URLSearchParams(window.location.search);
+            var sessionId = params.get("session");
+            if (sessionId) {
+                this._deepLinkId = sessionId;
+                this._deepLinkAutoplay = params.get("autoplay") === "true";
+            }
         },
 
         /** Fetch server configuration (e.g. read-only mode). */
@@ -164,18 +178,28 @@ function clawbackApp() {
                 .then(function (data) {
                     this.sessions = data.sessions || [];
                     this.loadingSessions = false;
+                    this._handleDeepLink();
                 }.bind(this))
                 .catch(function () {
                     this.sessions = [];
                     this.loadingSessions = false;
+                    this._handleDeepLink();
                 }.bind(this));
+        },
+
+        /** If a deep-link session ID is pending, load it now. */
+        _handleDeepLink() {
+            if (!this._deepLinkId) return;
+            var id = this._deepLinkId;
+            this._deepLinkId = null;
+            this.loadSession({ id: id });
         },
 
         /** Load a curated session by fetching its beats from the API. */
         loadSession(session) {
             this.loadingSession = true;
             this.uploadError = "";
-            fetch("/api/sessions/" + session.id)
+            fetch("/api/sessions/" + encodeURIComponent(session.id))
                 .then(function (r) {
                     if (!r.ok) throw new Error("Failed to load session");
                     return r.json();
@@ -183,9 +207,14 @@ function clawbackApp() {
                 .then(function (data) {
                     this.loadingSession = false;
                     this.startPlayback(data.beats, data.title || session.title, data.annotations);
+                    if (this._deepLinkAutoplay) {
+                        this._deepLinkAutoplay = false;
+                        this.togglePlay();
+                    }
                 }.bind(this))
                 .catch(function (err) {
                     this.loadingSession = false;
+                    this._deepLinkAutoplay = false;
                     this.uploadError = "Failed to load session: " + err.message;
                 }.bind(this));
         },

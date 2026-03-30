@@ -29,7 +29,8 @@ def list_sessions():
 @api_bp.route("/sessions/upload", methods=["POST"])
 def upload_session():
     """Upload a new session JSONL with metadata."""
-    if current_app.config["CLAWBACK_READ_ONLY"]:
+    ephemeral = request.form.get("ephemeral", "").lower() in ("1", "true", "yes")
+    if current_app.config["CLAWBACK_READ_ONLY"] and not ephemeral:
         return jsonify({"status": "error", "message": "Read-only mode"}), 403
     file = request.files.get("file")
     title = request.form.get("title", "").strip()
@@ -72,6 +73,26 @@ def upload_session():
             400,
         )
 
+    # Build manifest entry
+    tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else []
+    entry = {
+        "id": session_id,
+        "title": title,
+        "description": description,
+        "file": filename,
+        "beat_count": len(result["beats"]),
+        "tags": tags,
+    }
+
+    if ephemeral:
+        # Memory-only: no disk write, no manifest update
+        cache = current_app.session_cache
+        cache.sweep_ephemeral(current_app.config["CLAWBACK_EPHEMERAL_TTL"])
+        cache.add_ephemeral(session_id, entry, result["beats"])
+        return jsonify({"status": "ok", "session": entry}), 201
+
+    # --- Curated path: write to disk and update manifest ---
+
     # Write JSONL file to sessions directory
     sessions_dir = current_app.sessions_dir
     file_path = (sessions_dir / filename).resolve()
@@ -87,17 +108,6 @@ def upload_session():
             jsonify({"status": "error", "message": f"Session '{session_id}' already exists"}),
             400,
         )
-
-    # Build manifest entry
-    tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else []
-    entry = {
-        "id": session_id,
-        "title": title,
-        "description": description,
-        "file": filename,
-        "beat_count": len(result["beats"]),
-        "tags": tags,
-    }
 
     # Update manifest on disk (atomic write via temp file + rename)
     manifest_path = sessions_dir / "manifest.json"

@@ -83,6 +83,8 @@ All configuration is via environment variables:
 |----------|---------|-------------|
 | `PORT` | `8080` | Port the server listens on |
 | `CLAWBACK_SECRET` | *(unset)* | When set, all routes except `/health` require this secret |
+| `CLAWBACK_READ_ONLY` | *(unset)* | When set to `true`, disables editing and curated uploads |
+| `CLAWBACK_EPHEMERAL_TTL` | `14400` | Time-to-live for ephemeral sessions in seconds (default 4 hours) |
 
 ### Access gating
 
