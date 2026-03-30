@@ -19,4 +19,7 @@ EXPOSE ${PORT}
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/health')"
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 2 'app:create_app()'"]
+# IMPORTANT: Keep workers at 1. The ephemeral session startup sweep in
+# create_app() is not safe with concurrent workers. Disk fallback handles
+# cross-worker cache misses if workers is ever increased.
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 1 'app:create_app()'"]

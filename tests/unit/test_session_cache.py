@@ -203,3 +203,103 @@ def test_add_session_with_annotations(cache):
     data = cache.get_session("annotated")
     assert data["annotations"] is not None
     assert data["annotations"]["session_id"] == "annotated"
+
+
+# --- Disk fallback tests ---
+
+_MINIMAL_JSONL = (
+    '{"type":"user","message":{"content":"hello"},'
+    '"uuid":"u1","parentUuid":null,"timestamp":"2026-01-01T00:00:00Z"}\n'
+    '{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]},'
+    '"uuid":"a1","parentUuid":"u1","timestamp":"2026-01-01T00:00:01Z"}\n'
+)
+
+
+def test_get_session_disk_fallback_curated(tmp_path):
+    """Cache miss loads curated session from disk."""
+    # Write session file but don't add to cache
+    (tmp_path / "disk-session.jsonl").write_text(_MINIMAL_JSONL)
+    (tmp_path / "manifest.json").write_text("[]")
+
+    c = SessionCache()
+    c.load(str(tmp_path))
+    c.set_directories(tmp_path, tmp_path / "ephemeral")
+
+    # Not in memory
+    assert "disk-session" not in c._parsed
+    # But disk fallback finds it
+    data = c.get_session("disk-session")
+    assert data is not None
+    assert len(data["beats"]) > 0
+    # Now cached in memory
+    assert "disk-session" in c._parsed
+
+
+def test_get_session_disk_fallback_ephemeral(tmp_path):
+    """Cache miss loads ephemeral session from disk."""
+    eph_dir = tmp_path / "ephemeral"
+    eph_dir.mkdir()
+    (eph_dir / "eph-session.jsonl").write_text(_MINIMAL_JSONL)
+    (tmp_path / "manifest.json").write_text("[]")
+
+    c = SessionCache()
+    c.load(str(tmp_path))
+    c.set_directories(tmp_path, eph_dir)
+
+    data = c.get_session("eph-session")
+    assert data is not None
+    assert len(data["beats"]) > 0
+    assert "eph-session" in c._ephemeral
+
+
+def test_get_session_disk_fallback_not_found(tmp_path):
+    """Disk fallback returns None when file doesn't exist."""
+    eph_dir = tmp_path / "ephemeral"
+    eph_dir.mkdir()
+    (tmp_path / "manifest.json").write_text("[]")
+
+    c = SessionCache()
+    c.load(str(tmp_path))
+    c.set_directories(tmp_path, eph_dir)
+
+    assert c.get_session("nonexistent") is None
+
+
+def test_sweep_ephemeral_deletes_files(tmp_path):
+    """TTL sweep removes .jsonl and sidecar from disk."""
+    import time
+
+    eph_dir = tmp_path / "ephemeral"
+    eph_dir.mkdir()
+    (eph_dir / "old-session.jsonl").write_text(_MINIMAL_JSONL)
+    (eph_dir / "old-session-annotations.json").write_text("{}")
+
+    c = SessionCache()
+    c.set_directories(tmp_path, eph_dir)
+    c.add_ephemeral("old-session", {"title": "old"}, [{"id": 1}])
+    c._ephemeral["old-session"]["created_at"] = time.time() - 10000
+
+    c.sweep_ephemeral(5000)
+
+    assert c.get_session("old-session") is None
+    assert not (eph_dir / "old-session.jsonl").exists()
+    assert not (eph_dir / "old-session-annotations.json").exists()
+
+
+def test_startup_clears_ephemeral_dir(tmp_path):
+    """App factory clears ephemeral dir on startup."""
+    from app import create_app
+
+    eph_dir = tmp_path / "ephemeral"
+    eph_dir.mkdir()
+    (eph_dir / "stale.jsonl").write_text(_MINIMAL_JSONL)
+    (eph_dir / "stale-annotations.json").write_text("{}")
+
+    create_app({
+        "TESTING": True,
+        "SESSIONS_DIR": str(tmp_path),
+        "EPHEMERAL_DIR": str(eph_dir),
+    })
+
+    assert not (eph_dir / "stale.jsonl").exists()
+    assert not (eph_dir / "stale-annotations.json").exists()

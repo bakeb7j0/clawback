@@ -27,7 +27,13 @@ def tmp_client(tmp_path):
     ]
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
 
-    app = create_app({"TESTING": True, "DEBUG": True, "SESSIONS_DIR": str(tmp_path)})
+    eph_dir = tmp_path / "ephemeral"
+    eph_dir.mkdir()
+    app = create_app({
+        "TESTING": True, "DEBUG": True,
+        "SESSIONS_DIR": str(tmp_path),
+        "EPHEMERAL_DIR": str(eph_dir),
+    })
     return app.test_client()
 
 
@@ -336,6 +342,7 @@ def test_annotations_put_blocked_when_read_only(tmp_path):
     app = create_app({
         "TESTING": True, "CLAWBACK_READ_ONLY": True,
         "SESSIONS_DIR": str(tmp_path),
+        "EPHEMERAL_DIR": str(tmp_path / "ephemeral"),
     })
     client = app.test_client()
     response = client.put(
@@ -352,6 +359,7 @@ def test_upload_blocked_when_read_only(tmp_path):
     app = create_app({
         "TESTING": True, "CLAWBACK_READ_ONLY": True,
         "SESSIONS_DIR": str(tmp_path),
+        "EPHEMERAL_DIR": str(tmp_path / "ephemeral"),
     })
     client = app.test_client()
     jsonl = (
@@ -446,10 +454,10 @@ def test_upload_ephemeral_accessible_by_id(tmp_client):
     assert response.json["title"] == "Ephemeral Session"
 
 
-def test_upload_ephemeral_no_disk_write(tmp_client, tmp_path):
-    """Ephemeral upload does not write .jsonl to disk."""
-    # tmp_client uses tmp_path as sessions_dir from the fixture
+def test_upload_ephemeral_no_curated_disk_write(tmp_client, tmp_path):
+    """Ephemeral upload does not write .jsonl to curated dir."""
     _ephemeral_upload(tmp_client)
+    # Not in curated dir (tmp_path itself)
     jsonl_files = list(tmp_path.glob("ephemeral*.jsonl"))
     assert len(jsonl_files) == 0
 
@@ -468,6 +476,7 @@ def test_upload_ephemeral_allowed_in_read_only(tmp_path):
     app = create_app({
         "TESTING": True, "CLAWBACK_READ_ONLY": True,
         "SESSIONS_DIR": str(tmp_path),
+        "EPHEMERAL_DIR": str(tmp_path / "ephemeral"),
     })
     client = app.test_client()
     response = _ephemeral_upload(client)
@@ -480,6 +489,7 @@ def test_upload_curated_blocked_in_read_only(tmp_path):
     app = create_app({
         "TESTING": True, "CLAWBACK_READ_ONLY": True,
         "SESSIONS_DIR": str(tmp_path),
+        "EPHEMERAL_DIR": str(tmp_path / "ephemeral"),
     })
     client = app.test_client()
     data = {
@@ -528,3 +538,125 @@ def test_sweep_ephemeral_keeps_fresh(tmp_path):
     cache.add_ephemeral("fresh", {"title": "fresh"}, [{"id": 1}])
     cache.sweep_ephemeral(5000)
     assert cache.get_session("fresh") is not None
+
+
+# --- Ephemeral disk write tests ---
+
+
+def test_ephemeral_upload_writes_to_disk(tmp_client, tmp_path):
+    """Ephemeral upload creates .jsonl in ephemeral dir."""
+    _ephemeral_upload(tmp_client)
+    eph_dir = tmp_path / "ephemeral"
+    assert (eph_dir / "ephemeral-session.jsonl").exists()
+
+
+def test_ephemeral_not_in_curated_dir(tmp_client, tmp_path):
+    """Ephemeral file is in ephemeral dir, not curated."""
+    _ephemeral_upload(tmp_client)
+    assert not (tmp_path / "ephemeral-session.jsonl").exists()
+    assert (tmp_path / "ephemeral" / "ephemeral-session.jsonl").exists()
+
+
+# --- Upload with annotations tests ---
+
+
+def test_upload_with_annotations(tmp_client):
+    """Upload with annotations field saves annotations."""
+    annotations = json.dumps({
+        "session_id": "annotated-upload",
+        "sections": [],
+        "callouts": [
+            {"id": "cal-1", "after_beat": 0, "style": "note", "content": "Hello"}
+        ],
+        "artifacts": [],
+    })
+    data = {
+        "file": (io.BytesIO(_VALID_JSONL.encode()), "test.jsonl"),
+        "title": "Annotated Upload",
+        "annotations": annotations,
+    }
+    response = tmp_client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert response.status_code == 201
+
+    # Verify annotations are accessible
+    response = tmp_client.get("/api/sessions/annotated-upload")
+    assert response.status_code == 200
+    assert response.json["annotations"] is not None
+    assert len(response.json["annotations"]["callouts"]) == 1
+
+
+def test_upload_with_invalid_annotations(tmp_client):
+    """Upload with bad annotations JSON returns 400."""
+    data = {
+        "file": (io.BytesIO(_VALID_JSONL.encode()), "test.jsonl"),
+        "title": "Bad Annotations",
+        "annotations": "not valid json{{{",
+    }
+    response = tmp_client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert response.status_code == 400
+    assert "Invalid annotations" in response.json["message"]
+
+
+def test_upload_without_annotations_unchanged(tmp_client):
+    """Upload without annotations field works as before."""
+    data = {
+        "file": (io.BytesIO(_VALID_JSONL.encode()), "test.jsonl"),
+        "title": "No Annotations",
+    }
+    response = tmp_client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert response.status_code == 201
+    response = tmp_client.get("/api/sessions/no-annotations")
+    assert response.json["annotations"] is None
+
+
+def test_ephemeral_upload_with_schema_invalid_annotations(tmp_client):
+    """Ephemeral upload with schema-invalid annotations returns 400."""
+    annotations = json.dumps({
+        "session_id": "x",
+        "sections": [],
+        "callouts": [
+            {"id": "c1", "after_beat": 0, "style": "INVALID_STYLE", "content": "hi"}
+        ],
+        "artifacts": [],
+    })
+    data = {
+        "file": (io.BytesIO(_VALID_JSONL.encode()), "test.jsonl"),
+        "title": "Bad Schema Eph",
+        "ephemeral": "true",
+        "annotations": annotations,
+    }
+    response = tmp_client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert response.status_code == 400
+    assert "errors" in response.json
+
+
+def test_ephemeral_upload_with_annotations(tmp_client, tmp_path):
+    """Ephemeral upload saves annotations sidecar."""
+    annotations = json.dumps({
+        "session_id": "eph-annotated",
+        "sections": [],
+        "callouts": [],
+        "artifacts": [],
+    })
+    data = {
+        "file": (io.BytesIO(_VALID_JSONL.encode()), "test.jsonl"),
+        "title": "Eph Annotated",
+        "ephemeral": "true",
+        "annotations": annotations,
+    }
+    response = tmp_client.post(
+        "/api/sessions/upload", data=data, content_type="multipart/form-data",
+    )
+    assert response.status_code == 201
+    eph_dir = tmp_path / "ephemeral"
+    assert (eph_dir / "eph-annotated-annotations.json").exists()
+    response = tmp_client.get("/api/sessions/eph-annotated")
+    assert response.json["annotations"] is not None

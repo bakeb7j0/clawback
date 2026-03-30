@@ -24,6 +24,13 @@ class SessionCache:
         self._manifest = []
         self._parsed = {}
         self._ephemeral = {}  # {session_id: {"data": {...}, "created_at": float}}
+        self._sessions_dir = None
+        self._ephemeral_dir = None
+
+    def set_directories(self, sessions_dir, ephemeral_dir):
+        """Set directory paths for disk fallback lookups."""
+        self._sessions_dir = Path(sessions_dir) if sessions_dir else None
+        self._ephemeral_dir = Path(ephemeral_dir) if ephemeral_dir else None
 
     def load(self, sessions_dir=None, debug=False):
         """Parse all curated sessions from disk into memory.
@@ -83,14 +90,51 @@ class SessionCache:
         return self._manifest
 
     def get_session(self, session_id):
-        """Return pre-parsed session data, or None if not found."""
+        """Return pre-parsed session data, or None if not found.
+
+        Checks in-memory caches first, then falls back to disk for
+        cross-worker discovery of recently uploaded sessions.
+        """
         data = self._parsed.get(session_id)
         if data is not None:
             return data
         ephemeral = self._ephemeral.get(session_id)
         if ephemeral is not None:
             return ephemeral["data"]
+        # Disk fallback — curated
+        if self._sessions_dir:
+            data = self._try_load_from_disk(session_id, self._sessions_dir)
+            if data is not None:
+                self._parsed[session_id] = data
+                return data
+        # Disk fallback — ephemeral
+        if self._ephemeral_dir:
+            data = self._try_load_from_disk(session_id, self._ephemeral_dir)
+            if data is not None:
+                self._ephemeral[session_id] = {
+                    "data": data,
+                    "created_at": time.time(),
+                }
+                return data
         return None
+
+    def _try_load_from_disk(self, session_id, directory):
+        """Attempt to load a session from disk. Returns parsed data or None."""
+        file_path = directory / f"{session_id}.jsonl"
+        if not file_path.exists():
+            return None
+        try:
+            result = parse_session(file_path.read_text())
+            annotations = AnnotationStore(directory).load(session_id)
+            return {
+                "title": session_id,
+                "beats": result["beats"],
+                "errors": result.get("errors", 0),
+                "annotations": annotations,
+            }
+        except Exception:
+            logger.warning("Failed to load session %s from disk", session_id)
+            return None
 
     def update_annotations(self, session_id, annotations):
         """Update cached annotations for a session without full reload."""
@@ -108,20 +152,20 @@ class SessionCache:
             "annotations": annotations,
         }
 
-    def add_ephemeral(self, session_id, entry, beats):
+    def add_ephemeral(self, session_id, entry, beats, annotations=None):
         """Add an ephemeral session (memory-only, not in manifest)."""
         self._ephemeral[session_id] = {
             "data": {
                 "title": entry.get("title", session_id),
                 "beats": beats,
                 "errors": 0,
-                "annotations": None,
+                "annotations": annotations,
             },
             "created_at": time.time(),
         }
 
     def sweep_ephemeral(self, ttl):
-        """Remove ephemeral sessions older than ttl seconds."""
+        """Remove ephemeral sessions older than ttl seconds (memory + disk)."""
         now = time.time()
         expired = [
             sid for sid, rec in self._ephemeral.items()
@@ -129,3 +173,19 @@ class SessionCache:
         ]
         for sid in expired:
             del self._ephemeral[sid]
+            if self._ephemeral_dir:
+                (self._ephemeral_dir / f"{sid}.jsonl").unlink(missing_ok=True)
+                (self._ephemeral_dir / f"{sid}-annotations.json").unlink(missing_ok=True)
+        # Also sweep disk-only orphans (written by other workers, never loaded)
+        if self._ephemeral_dir:
+            cutoff = now - ttl
+            for p in self._ephemeral_dir.glob("*.jsonl"):
+                try:
+                    if p.stat().st_mtime < cutoff:
+                        sid = p.stem
+                        p.unlink(missing_ok=True)
+                        (self._ephemeral_dir / f"{sid}-annotations.json").unlink(
+                            missing_ok=True
+                        )
+                except OSError:
+                    pass
