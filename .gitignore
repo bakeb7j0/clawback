@@ -209,3 +209,6 @@ __marimo__/
 # Claude Code session state
 .claude/
 Docs/plan.md
+
+# Ephemeral sessions (temporary, not curated)
+sessions/ephemeral/

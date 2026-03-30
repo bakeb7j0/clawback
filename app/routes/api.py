@@ -73,6 +73,22 @@ def upload_session():
             400,
         )
 
+    # Parse optional annotations
+    annotations = None
+    annotations_raw = request.form.get("annotations", "").strip()
+    if annotations_raw:
+        try:
+            annotations = json.loads(annotations_raw)
+        except (json.JSONDecodeError, ValueError):
+            return jsonify({"status": "error", "message": "Invalid annotations JSON"}), 400
+        validate_store = (
+            current_app.ephemeral_annotation_store if ephemeral
+            else current_app.annotation_store
+        )
+        errors = validate_store.validate(annotations)
+        if errors:
+            return jsonify({"status": "error", "errors": errors}), 400
+
     # Build manifest entry
     tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else []
     entry = {
@@ -85,10 +101,18 @@ def upload_session():
     }
 
     if ephemeral:
-        # Memory-only: no disk write, no manifest update
+        # Write to ephemeral dir on disk, not curated
+        eph_dir = current_app.ephemeral_dir
+        eph_path = (eph_dir / filename).resolve()
+        if not _is_path_within(eph_path, eph_dir):
+            return jsonify({"status": "error", "message": "Invalid title"}), 400
+        with open(eph_path, "w") as f:
+            f.write(content)
+        if annotations:
+            current_app.ephemeral_annotation_store.save(session_id, annotations)
         cache = current_app.session_cache
         cache.sweep_ephemeral(current_app.config["CLAWBACK_EPHEMERAL_TTL"])
-        cache.add_ephemeral(session_id, entry, result["beats"])
+        cache.add_ephemeral(session_id, entry, result["beats"], annotations=annotations)
         return jsonify({"status": "ok", "session": entry}), 201
 
     # --- Curated path: write to disk and update manifest ---
@@ -138,9 +162,13 @@ def upload_session():
         os.unlink(tmp_name)
         raise
 
+    # Save annotations sidecar if provided
+    if annotations:
+        current_app.annotation_store.save(session_id, annotations)
+
     # Add to in-memory cache
     current_app.session_cache.add_session(
-        session_id, entry, result["beats"]
+        session_id, entry, result["beats"], annotations=annotations,
     )
 
     return jsonify({"status": "ok", "session": entry}), 201
