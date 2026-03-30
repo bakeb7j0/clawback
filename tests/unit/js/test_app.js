@@ -86,11 +86,12 @@ global.document = {
     querySelector: function () { return null; },
 };
 
-// window mock for resize event handling
+// window mock for resize event handling and location
 var _windowListeners = {};
 global.window = {
     innerWidth: 1280,
     innerHeight: 800,
+    location: { search: "" },
     addEventListener: function (evt, fn) {
         if (!_windowListeners[evt]) _windowListeners[evt] = [];
         _windowListeners[evt].push(fn);
@@ -2853,6 +2854,48 @@ test("openUploadForm is a no-op when readOnly is true", function () {
     app.readOnly = true;
     app.openUploadForm(makeFileEvent(makeFakeFile()));
     assert.equal(app._uploadForm, null, "upload form must not open in read-only mode");
+});
+
+// ---------------------------------------------------------------------------
+// Deep-link tests
+// ---------------------------------------------------------------------------
+
+test("_checkDeepLink sets _deepLinkId from query param", function () {
+    var app = makeApp(5);
+    window.location.search = "?session=my-session&autoplay=true";
+    app._checkDeepLink();
+    assert.equal(app._deepLinkId, "my-session");
+    assert.equal(app._deepLinkAutoplay, true);
+    window.location.search = "";
+});
+
+test("_checkDeepLink ignores empty query params", function () {
+    var app = makeApp(5);
+    window.location.search = "";
+    app._checkDeepLink();
+    assert.equal(app._deepLinkId, null);
+    assert.equal(app._deepLinkAutoplay, false);
+    window.location.search = "";
+});
+
+test("_handleDeepLink calls loadSession when _deepLinkId is set", function () {
+    var app = makeApp(5);
+    app.readOnly = false;
+    var loadedId = null;
+    app.loadSession = function (session) { loadedId = session.id; };
+    app._deepLinkId = "test-session";
+    app._handleDeepLink();
+    assert.equal(loadedId, "test-session");
+    assert.equal(app._deepLinkId, null, "_deepLinkId should be cleared after use");
+});
+
+test("_handleDeepLink does nothing when _deepLinkId is null", function () {
+    var app = makeApp(5);
+    var loadCalled = false;
+    app.loadSession = function () { loadCalled = true; };
+    app._deepLinkId = null;
+    app._handleDeepLink();
+    assert.equal(loadCalled, false);
 });
 
 // ---------------------------------------------------------------------------

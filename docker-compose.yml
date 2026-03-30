@@ -9,6 +9,8 @@ services:
       # - CLAWBACK_SECRET=your-secret-here
       # Uncomment to disable editing and uploads (viewer-only mode):
       # - CLAWBACK_READ_ONLY=true
+      # Uncomment to set ephemeral session TTL in seconds (default: 14400 = 4 hours):
+      # - CLAWBACK_EPHEMERAL_TTL=14400
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8080}/health')"]
       interval: 30s

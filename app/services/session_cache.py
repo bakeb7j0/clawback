@@ -6,6 +6,7 @@ so the API can serve them without re-parsing on every request.
 
 import json
 import logging
+import time
 from pathlib import Path
 
 from app.services.annotation_store import AnnotationStore
@@ -22,6 +23,7 @@ class SessionCache:
     def __init__(self):
         self._manifest = []
         self._parsed = {}
+        self._ephemeral = {}  # {session_id: {"data": {...}, "created_at": float}}
 
     def load(self, sessions_dir=None, debug=False):
         """Parse all curated sessions from disk into memory.
@@ -82,7 +84,13 @@ class SessionCache:
 
     def get_session(self, session_id):
         """Return pre-parsed session data, or None if not found."""
-        return self._parsed.get(session_id)
+        data = self._parsed.get(session_id)
+        if data is not None:
+            return data
+        ephemeral = self._ephemeral.get(session_id)
+        if ephemeral is not None:
+            return ephemeral["data"]
+        return None
 
     def update_annotations(self, session_id, annotations):
         """Update cached annotations for a session without full reload."""
@@ -99,3 +107,25 @@ class SessionCache:
             "errors": 0,
             "annotations": annotations,
         }
+
+    def add_ephemeral(self, session_id, entry, beats):
+        """Add an ephemeral session (memory-only, not in manifest)."""
+        self._ephemeral[session_id] = {
+            "data": {
+                "title": entry.get("title", session_id),
+                "beats": beats,
+                "errors": 0,
+                "annotations": None,
+            },
+            "created_at": time.time(),
+        }
+
+    def sweep_ephemeral(self, ttl):
+        """Remove ephemeral sessions older than ttl seconds."""
+        now = time.time()
+        expired = [
+            sid for sid, rec in self._ephemeral.items()
+            if now - rec["created_at"] > ttl
+        ]
+        for sid in expired:
+            del self._ephemeral[sid]
