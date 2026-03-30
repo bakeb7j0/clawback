@@ -572,17 +572,24 @@ body {
     border-bottom-left-radius: 4px;
 }
 
-/* Beat number metadata — hidden by default, shown via container class */
+/* Beat number metadata — subtle overlay in bottom-right corner */
 .bubble__meta {
     display: none;
-    font-size: 0.75rem;
+    position: absolute;
+    bottom: 4px;
+    right: 8px;
+    font-size: 0.65rem;
     color: var(--color-text-muted);
-    margin-top: 4px;
-    text-align: right;
+    opacity: 0.4;
+    pointer-events: none;
 }
 
 .chat-area--show-meta .bubble__meta {
     display: block;
+}
+
+.chat-area--show-meta .bubble {
+    padding-bottom: 1.4rem;
 }
 
 /* Bubble appear animation */

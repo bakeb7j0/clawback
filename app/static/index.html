@@ -272,12 +272,16 @@
 
         <div class="toolbar__separator"></div>
 
-        <!-- Tour help button -->
+        <!-- View options: tour help + beat numbers toggle -->
         <div class="toolbar__group">
             <button class="toolbar__btn toolbar__btn--help"
                     :class="{ 'toolbar__btn--glow': _tourShowGlow }"
                     @click="startTour()"
                     title="Take a tour">?</button>
+            <button class="toolbar__btn toolbar__btn--iw"
+                    :class="{ 'toolbar__btn--active': showBeatNumbers }"
+                    @click="showBeatNumbers = !showBeatNumbers"
+                    title="Toggle beat numbers">#</button>
         </div>
 
         <div class="toolbar__separator"></div>
