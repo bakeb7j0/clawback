@@ -57,5 +57,68 @@
       "code-review",
       "full-build"
     ]
+  },
+  {
+    "id": "lab-05a",
+    "title": "Lab 05a: Design Your MCP Server",
+    "description": "PRD writing and issue decomposition for the WTF MCP server quiescence mode feature. Watch the design phase before implementation.",
+    "file": "lab-05a.jsonl",
+    "beat_count": 16,
+    "tags": [
+      "lab",
+      "mcp-server",
+      "prd",
+      "design",
+      "planning"
+    ]
+  },
+  {
+    "id": "lab-04",
+    "title": "Lab 04: Code Review",
+    "description": "Learn the code review workflow — running the code-reviewer agent, understanding severity ratings, and fixing findings before commit.",
+    "file": "lab-04.jsonl",
+    "beat_count": 311,
+    "tags": [
+      "lab",
+      "code-review",
+      "testing"
+    ]
+  },
+  {
+    "id": "lab-03",
+    "title": "Lab 03: Identity and Check-In",
+    "description": "Agent identity setup and session onboarding — /name, Dev-Team, /engage workflow.",
+    "file": "lab-03.jsonl",
+    "beat_count": 355,
+    "tags": [
+      "lab",
+      "identity",
+      "onboarding"
+    ]
+  },
+  {
+    "id": "lab-02",
+    "title": "Lab 02: Your First Workflow",
+    "description": "Complete workflow from issue creation to merge — branch, code, precheck, scp, MR, close.",
+    "file": "lab-02.jsonl",
+    "beat_count": 267,
+    "tags": [
+      "lab",
+      "workflow",
+      "git",
+      "precheck"
+    ]
+  },
+  {
+    "id": "lab-01",
+    "title": "Lab 01: Project Setup",
+    "description": "Initial setup — /ccfold, CLAUDE.md, /engage, Dev-Team configuration.",
+    "file": "lab-01.jsonl",
+    "beat_count": 1,
+    "tags": [
+      "lab",
+      "setup",
+      "onboarding"
+    ]
   }
 ]
