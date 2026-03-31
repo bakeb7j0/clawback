@@ -1,28 +1,61 @@
 [
-    {
-        "id": "demo-session",
-        "title": "Demo: File Review",
-        "description": "A sample conversation where Claude reads and runs a Python file, then reviews a config.",
-        "file": "demo-session.jsonl",
-        "beat_count": 12,
-        "tags": ["tools", "code-review"],
-        "debug": true
-    },
-    {
-        "id": "debugging-session",
-        "title": "Debugging: API 500 Errors",
-        "description": "Watch a systematic debugging workflow — from symptom to root cause to fix, investigating a null-value bug in a profile update endpoint.",
-        "file": "debugging-session.jsonl",
-        "beat_count": 16,
-        "tags": ["debugging", "bug-fix", "api"],
-        "debug": true
-    },
-    {
-        "id": "creating-clawback",
-        "title": "Creating Clawback",
-        "description": "A complete context engineering session — from PRD to production. Watch the full build of this very application: 13 issues, 4 phases, live testing, bug fixes, and deployment.",
-        "file": "creating-clawback.jsonl",
-        "beat_count": 2226,
-        "tags": ["context-engineering", "full-build", "flask", "javascript", "docker", "testing"]
-    }
+  {
+    "id": "demo-session",
+    "title": "Demo: File Review",
+    "description": "A sample conversation where Claude reads and runs a Python file, then reviews a config.",
+    "file": "demo-session.jsonl",
+    "beat_count": 12,
+    "tags": [
+      "tools",
+      "code-review"
+    ],
+    "debug": true
+  },
+  {
+    "id": "debugging-session",
+    "title": "Debugging: API 500 Errors",
+    "description": "Watch a systematic debugging workflow — from symptom to root cause to fix, investigating a null-value bug in a profile update endpoint.",
+    "file": "debugging-session.jsonl",
+    "beat_count": 16,
+    "tags": [
+      "debugging",
+      "bug-fix",
+      "api"
+    ],
+    "debug": true
+  },
+  {
+    "id": "creating-clawback",
+    "title": "Creating Clawback",
+    "description": "A complete context engineering session — from PRD to production. Watch the full build of this very application: 13 issues, 4 phases, live testing, bug fixes, and deployment.",
+    "file": "creating-clawback.jsonl",
+    "beat_count": 2226,
+    "tags": [
+      "context-engineering",
+      "full-build",
+      "flask",
+      "javascript",
+      "docker",
+      "testing"
+    ]
+  },
+  {
+    "id": "lab-05b",
+    "title": "Lab 05b: Build and Ship It (WTF MCP Server)",
+    "description": "Complete implementation session — emergency fix for classifier hangs, producer-consumer refactor, quiescence mode design, live testing, code review, and merge. Watch the full build of a WTF MCP server feature from crisis to production.",
+    "file": "lab-05b.jsonl",
+    "annotations_file": "lab-05b-annotations.json",
+    "beat_count": 1075,
+    "tags": [
+      "lab",
+      "mcp-server",
+      "quiescence-mode",
+      "wtf",
+      "emergency-fix",
+      "producer-consumer",
+      "testing",
+      "code-review",
+      "full-build"
+    ]
+  }
 ]

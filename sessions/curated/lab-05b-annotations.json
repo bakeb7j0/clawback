@@ -1,0 +1,61 @@
+{
+  "session_id": "lab-05b",
+  "sections": [
+    {
+      "id": "sec-emergency",
+      "label": "Emergency: Classifier Subprocess Hangs",
+      "start_beat": 0,
+      "end_beat": 50,
+      "color": "red"
+    },
+    {
+      "id": "sec-prodcon",
+      "label": "Producer-Consumer Architecture Refactor",
+      "start_beat": 51,
+      "end_beat": 200,
+      "color": "purple"
+    },
+    {
+      "id": "sec-design",
+      "label": "Design: Quiescence Mode & Suspend Command",
+      "start_beat": 201,
+      "end_beat": 400,
+      "color": "blue"
+    },
+    {
+      "id": "sec-issue",
+      "label": "Issue Creation & Planning",
+      "start_beat": 401,
+      "end_beat": 500,
+      "color": "cyan"
+    },
+    {
+      "id": "sec-impl",
+      "label": "Implementation",
+      "start_beat": 501,
+      "end_beat": 800,
+      "color": "green"
+    },
+    {
+      "id": "sec-testing",
+      "label": "Live Testing & Schema Debugging",
+      "start_beat": 801,
+      "end_beat": 950,
+      "color": "orange"
+    },
+    {
+      "id": "sec-review",
+      "label": "Code Review & Fixes",
+      "start_beat": 951,
+      "end_beat": 1000,
+      "color": "yellow"
+    },
+    {
+      "id": "sec-merge",
+      "label": "Pre-commit & Merge",
+      "start_beat": 1001,
+      "end_beat": 1075,
+      "color": "indigo"
+    }
+  ]
+}
