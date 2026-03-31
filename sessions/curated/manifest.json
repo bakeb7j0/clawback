@@ -63,7 +63,7 @@
     "title": "Lab 05a: Design Your MCP Server",
     "description": "PRD writing and issue decomposition for the WTF MCP server quiescence mode feature. Watch the design phase before implementation.",
     "file": "lab-05a.jsonl",
-    "beat_count": 16,
+    "beat_count": 1211,
     "tags": [
       "lab",
       "mcp-server",
