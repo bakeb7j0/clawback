@@ -183,6 +183,69 @@ def get_session(session_id):
     return jsonify(data)
 
 
+@api_bp.route("/sessions/<session_id>", methods=["DELETE"])
+def delete_session(session_id):
+    """Delete a session — removes cache, manifest entry, and disk files.
+
+    Handles both curated and ephemeral sessions.
+    """
+    if current_app.config["CLAWBACK_READ_ONLY"]:
+        return jsonify({"status": "error", "message": "Read-only mode"}), 403
+
+    cache = current_app.session_cache
+    if cache.get_session(session_id) is None:
+        return jsonify({"status": "error", "message": "Session not found"}), 404
+
+    # Check if ephemeral before removing from cache (lookup disappears after delete)
+    is_ephemeral = session_id in cache._ephemeral
+
+    # Remove from in-memory cache and manifest
+    cache.delete_session(session_id)
+
+    if is_ephemeral:
+        # Ephemeral: remove from ephemeral dir
+        eph_dir = current_app.ephemeral_dir
+        eph_path = (eph_dir / f"{session_id}.jsonl").resolve()
+        if _is_path_within(eph_path, eph_dir) and eph_path.exists():
+            eph_path.unlink()
+        current_app.ephemeral_annotation_store.delete(session_id)
+    else:
+        # Curated: remove JSONL, annotations sidecar, and rewrite manifest
+        sessions_dir = current_app.sessions_dir
+        file_path = (sessions_dir / f"{session_id}.jsonl").resolve()
+        if _is_path_within(file_path, sessions_dir) and file_path.exists():
+            file_path.unlink()
+
+        current_app.annotation_store.delete(session_id)
+
+        # Rewrite manifest atomically
+        manifest_path = sessions_dir / "manifest.json"
+        if manifest_path.exists():
+            try:
+                with open(manifest_path) as f:
+                    manifest = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                manifest = []
+
+            manifest = [e for e in manifest if e.get("id") != session_id]
+
+            fd, tmp_name = tempfile.mkstemp(dir=str(sessions_dir), suffix=".json")
+            try:
+                import os
+
+                with open(fd, "w") as f:
+                    json.dump(manifest, f, indent=4)
+                    f.write("\n")
+                os.replace(tmp_name, str(manifest_path))
+            except Exception:
+                import os
+
+                os.unlink(tmp_name)
+                raise
+
+    return jsonify({"status": "ok"})
+
+
 @api_bp.route("/sessions/<session_id>/annotations", methods=["PUT"])
 def save_annotations(session_id):
     """Validate and save annotations for a curated session."""

@@ -724,6 +724,80 @@ body {
 }
 
 /* -----------------------------------------------------------------------
+   Skill expansion cards (collapsed by default)
+   ----------------------------------------------------------------------- */
+.skill-card {
+    align-self: flex-end;
+    width: 80%;
+    background-color: var(--color-user-bubble);
+    border-radius: 12px;
+    animation: fadeSlideUp 0.3s ease-out;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.skill-card__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.skill-card__header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.skill-card__icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.skill-card__summary {
+    flex: 1;
+    font-size: 0.875rem;
+    color: var(--color-text);
+}
+
+.skill-card__toggle {
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.skill-card__toggle:hover {
+    color: var(--color-text);
+    border-color: var(--color-text-muted);
+}
+
+.skill-card__body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+    font-family: var(--font-mono);
+    font-size: 0.8em;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+}
+
+.skill-card--expanded .skill-card__body {
+    padding: 0 16px 12px;
+    border-top: 1px solid var(--color-border);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* -----------------------------------------------------------------------
    Callout annotation cards
    ----------------------------------------------------------------------- */
 .callout {

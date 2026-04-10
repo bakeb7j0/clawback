@@ -142,6 +142,23 @@ class SessionCache:
             return
         self._parsed[session_id]["annotations"] = annotations
 
+    def delete_session(self, session_id):
+        """Remove a session from in-memory cache (and manifest for curated).
+
+        Handles both curated and ephemeral sessions.
+        Returns True if the session was found and removed, False otherwise.
+        Does NOT remove disk files — the caller handles that.
+        """
+        found = False
+        if session_id in self._parsed:
+            del self._parsed[session_id]
+            self._manifest = [e for e in self._manifest if e.get("id") != session_id]
+            found = True
+        if session_id in self._ephemeral:
+            del self._ephemeral[session_id]
+            found = True
+        return found
+
     def add_session(self, session_id, entry, beats, annotations=None):
         """Add a newly uploaded session to the cache without restart."""
         self._manifest.append(entry)

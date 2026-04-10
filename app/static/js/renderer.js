@@ -105,6 +105,15 @@ function renderBeat(beat, container) {
         return null;
     }
 
+    // Detect and collapse skill file expansions (large user messages
+    // injected when a slash command loads its skill file into context)
+    if (beat.type === "user_message") {
+        var cleaned = _stripSystemTags(beat.content);
+        if (cleaned.startsWith("Base directory for this skill:")) {
+            return _renderSkillExpansion(beat, cleaned, container);
+        }
+    }
+
     const bubble = document.createElement("div");
     bubble.classList.add("bubble");
     bubble.dataset.beatId = String(beat.id);
@@ -204,6 +213,93 @@ function renderArtifactPanel(artifact, contentEl) {
             hljs.highlightElement(block);
         });
     }
+}
+
+// ---------------------------------------------------------------------------
+// Internal — skill expansion rendering (collapsed by default)
+// ---------------------------------------------------------------------------
+
+/**
+ * Strips system-injected tags but preserves original whitespace/indentation.
+ * Lighter than _formatUserContent — used for detection and skill card body.
+ */
+function _stripSystemTags(text) {
+    if (!text) return "";
+    return text
+        .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "")
+        .replace(/<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g, "")
+        .trim();
+}
+
+/**
+ * Renders a skill file expansion as a collapsed card instead of a full bubble.
+ * Extracts the skill name from the "Base directory" header line.
+ */
+function _renderSkillExpansion(beat, content, container) {
+    var firstLine = content.split("\n")[0];
+    var pathMatch = firstLine.match(/Base directory for this skill:\s*(.+)/);
+    var skillPath = pathMatch ? pathMatch[1].trim() : "";
+    var skillName = skillPath.split("/").pop() || "unknown";
+
+    var card = document.createElement("div");
+    card.classList.add("skill-card", "skill-card--collapsed");
+    card.dataset.beatId = String(beat.id);
+
+    var header = document.createElement("div");
+    header.classList.add("skill-card__header");
+
+    var icon = document.createElement("span");
+    icon.classList.add("skill-card__icon");
+    icon.textContent = "\u2699";
+
+    var summary = document.createElement("span");
+    summary.classList.add("skill-card__summary");
+    summary.textContent = "Skill loaded: /" + skillName;
+
+    var toggleBtn = document.createElement("button");
+    toggleBtn.classList.add("skill-card__toggle");
+    toggleBtn.textContent = "\u25B6 Show";
+
+    header.appendChild(icon);
+    header.appendChild(summary);
+    header.appendChild(toggleBtn);
+
+    var body = document.createElement("div");
+    body.classList.add("skill-card__body");
+    body.textContent = content;
+
+    card.appendChild(header);
+    card.appendChild(body);
+
+    // Beat number metadata
+    var meta = document.createElement("span");
+    meta.classList.add("bubble__meta");
+    meta.textContent = "#" + (beat.id + 1);
+    card.appendChild(meta);
+
+    container.appendChild(card);
+
+    var expanded = false;
+    function toggle(e) {
+        if (e) e.stopPropagation();
+        expanded = !expanded;
+        if (expanded) {
+            card.classList.remove("skill-card--collapsed");
+            card.classList.add("skill-card--expanded");
+            body.style.maxHeight = body.scrollHeight + "px";
+            toggleBtn.textContent = "\u25BC Hide";
+        } else {
+            card.classList.remove("skill-card--expanded");
+            card.classList.add("skill-card--collapsed");
+            body.style.maxHeight = "0";
+            toggleBtn.textContent = "\u25B6 Show";
+        }
+    }
+
+    toggleBtn.addEventListener("click", toggle);
+    header.addEventListener("click", toggle);
+
+    return card;
 }
 
 // ---------------------------------------------------------------------------
@@ -498,5 +594,6 @@ if (typeof module !== "undefined" && module.exports) {
         resetGroups,
         renderArtifactPanel,
         _formatUserContent,
+        _stripSystemTags,
     };
 }

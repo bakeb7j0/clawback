@@ -303,3 +303,33 @@ def test_startup_clears_ephemeral_dir(tmp_path):
 
     assert not (eph_dir / "stale.jsonl").exists()
     assert not (eph_dir / "stale-annotations.json").exists()
+
+
+def test_delete_session(cache):
+    """delete_session removes from cache and manifest."""
+    sessions = cache.list_sessions()
+    first_id = sessions[0]["id"]
+    assert cache.get_session(first_id) is not None
+
+    result = cache.delete_session(first_id)
+    assert result is True
+    assert cache.get_session(first_id) is None
+    ids = [s["id"] for s in cache.list_sessions()]
+    assert first_id not in ids
+
+
+def test_delete_session_unknown_returns_false(cache):
+    """delete_session returns False for non-existent session."""
+    result = cache.delete_session("nonexistent-session")
+    assert result is False
+
+
+def test_delete_ephemeral_session():
+    """delete_session removes ephemeral sessions from cache."""
+    c = SessionCache()
+    c.add_ephemeral("eph-1", {"title": "Eph"}, [{"id": 0, "type": "user_message"}])
+    assert c.get_session("eph-1") is not None
+
+    result = c.delete_session("eph-1")
+    assert result is True
+    assert c.get_session("eph-1") is None
