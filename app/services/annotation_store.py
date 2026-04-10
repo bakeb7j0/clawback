@@ -75,6 +75,14 @@ class AnnotationStore:
 
         logger.info("Saved annotations for session %s", session_id)
 
+    def delete(self, session_id):
+        """Remove the annotation sidecar file if it exists."""
+        try:
+            path = self._annotation_path(session_id)
+        except ValueError:
+            return
+        path.unlink(missing_ok=True)
+
     def validate(self, data):
         """Return a list of validation errors (empty if valid)."""
         errors = []

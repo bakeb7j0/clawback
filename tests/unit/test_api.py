@@ -660,3 +660,119 @@ def test_ephemeral_upload_with_annotations(tmp_client, tmp_path):
     assert (eph_dir / "eph-annotated-annotations.json").exists()
     response = tmp_client.get("/api/sessions/eph-annotated")
     assert response.json["annotations"] is not None
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/sessions/<session_id>
+# ---------------------------------------------------------------------------
+
+
+def test_delete_session_success(tmp_client, tmp_path):
+    """DELETE removes session from cache, manifest, and disk."""
+    # Verify session exists first
+    response = tmp_client.get("/api/sessions/test-session")
+    assert response.status_code == 200
+
+    response = tmp_client.delete("/api/sessions/test-session")
+    assert response.status_code == 200
+    assert response.json["status"] == "ok"
+
+    # Session no longer accessible
+    response = tmp_client.get("/api/sessions/test-session")
+    assert response.status_code == 404
+
+    # Session no longer in list
+    response = tmp_client.get("/api/sessions")
+    ids = [s["id"] for s in response.json["sessions"]]
+    assert "test-session" not in ids
+
+    # JSONL file removed from disk
+    assert not (tmp_path / "test-session.jsonl").exists()
+
+    # Manifest updated on disk
+    with open(tmp_path / "manifest.json") as f:
+        manifest = json.load(f)
+    ids = [e["id"] for e in manifest]
+    assert "test-session" not in ids
+
+
+def test_delete_session_404_unknown(tmp_client):
+    """DELETE returns 404 for non-existent session."""
+    response = tmp_client.delete("/api/sessions/nonexistent")
+    assert response.status_code == 404
+
+
+def test_delete_session_blocked_when_read_only(tmp_path):
+    """DELETE is blocked in read-only mode."""
+    jsonl = (
+        '{"type":"user","message":{"content":"hello"},'
+        '"uuid":"u1","parentUuid":null,"timestamp":"2026-01-01T00:00:00Z"}\n'
+        '{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]},'
+        '"uuid":"a1","parentUuid":"u1","timestamp":"2026-01-01T00:00:01Z"}\n'
+    )
+    (tmp_path / "test-session.jsonl").write_text(jsonl)
+    manifest = [{"id": "test-session", "title": "Test", "file": "test-session.jsonl",
+                 "beat_count": 2, "description": "A test", "tags": []}]
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+    eph_dir = tmp_path / "ephemeral"
+    eph_dir.mkdir()
+    app = create_app({
+        "TESTING": True, "DEBUG": True,
+        "SESSIONS_DIR": str(tmp_path),
+        "EPHEMERAL_DIR": str(eph_dir),
+        "CLAWBACK_READ_ONLY": True,
+    })
+    client = app.test_client()
+    response = client.delete("/api/sessions/test-session")
+    assert response.status_code == 403
+
+
+def test_delete_removes_annotations_sidecar(tmp_client, tmp_path):
+    """DELETE removes the annotations sidecar file too."""
+    # Create annotations for test-session
+    ann = {"session_id": "test-session", "sections": [], "callouts": [], "artifacts": []}
+    response = tmp_client.put(
+        "/api/sessions/test-session/annotations",
+        data=json.dumps(ann),
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    assert (tmp_path / "test-session-annotations.json").exists()
+
+    # Delete the session
+    response = tmp_client.delete("/api/sessions/test-session")
+    assert response.status_code == 200
+
+    # Annotations sidecar removed
+    assert not (tmp_path / "test-session-annotations.json").exists()
+
+
+def test_delete_ephemeral_session(tmp_client, tmp_path):
+    """DELETE removes ephemeral session from cache and disk."""
+    _ephemeral_upload(tmp_client)
+    # Verify it exists
+    response = tmp_client.get("/api/sessions/ephemeral-session")
+    assert response.status_code == 200
+
+    response = tmp_client.delete("/api/sessions/ephemeral-session")
+    assert response.status_code == 200
+    assert response.json["status"] == "ok"
+
+    # No longer accessible
+    response = tmp_client.get("/api/sessions/ephemeral-session")
+    assert response.status_code == 404
+
+    # Disk file removed
+    eph_dir = tmp_path / "ephemeral"
+    assert not (eph_dir / "ephemeral-session.jsonl").exists()
+
+
+def test_delete_ephemeral_does_not_touch_manifest(tmp_client, tmp_path):
+    """DELETE of ephemeral session leaves curated manifest unchanged."""
+    _ephemeral_upload(tmp_client)
+    manifest_before = (tmp_path / "manifest.json").read_text()
+
+    tmp_client.delete("/api/sessions/ephemeral-session")
+
+    manifest_after = (tmp_path / "manifest.json").read_text()
+    assert manifest_before == manifest_after

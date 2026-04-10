@@ -104,6 +104,7 @@ const {
     resetGroups,
     renderArtifactPanel,
     _formatUserContent,
+    _stripSystemTags,
 } = require("../../../app/static/js/renderer.js");
 
 let passed = 0;
@@ -1372,6 +1373,171 @@ test("renderBeat skips empty formatted user message", () => {
     }), container);
     assert.equal(result, null, "should return null for empty formatted content");
     assert.equal(container.children.length, 0, "should not append any element");
+});
+
+// ---------------------------------------------------------------------------
+// _stripSystemTags
+// ---------------------------------------------------------------------------
+console.log("\n_stripSystemTags");
+
+test("strips system-reminder tags but preserves whitespace", () => {
+    const input = "line one\n  indented\n<system-reminder>hidden</system-reminder>\nlast";
+    const result = _stripSystemTags(input);
+    assert.ok(result.includes("  indented"), "should preserve leading spaces");
+    assert.ok(!result.includes("hidden"));
+});
+
+test("strips local-command-caveat tags", () => {
+    const input = "<local-command-caveat>caveat</local-command-caveat>\nreal content";
+    assert.equal(_stripSystemTags(input), "real content");
+});
+
+test("returns empty string for null", () => {
+    assert.equal(_stripSystemTags(null), "");
+});
+
+test("returns trimmed content for plain text", () => {
+    assert.equal(_stripSystemTags("  hello  "), "hello");
+});
+
+// ---------------------------------------------------------------------------
+// renderBeat — skill expansion cards
+// ---------------------------------------------------------------------------
+console.log("\nrenderBeat — skill expansion cards");
+
+test("renders skill expansion as collapsed card instead of bubble", () => {
+    const container = makeContainer();
+    const beat = makeBeat(0, {
+        type: "user_message",
+        content: "Base directory for this skill: /home/user/.claude/skills/ddd\n\n# DDD Skill\n\nLots of content here...",
+    });
+    const card = renderBeat(beat, container);
+    assert.ok(card, "should return an element");
+    assert.ok(card.classList.contains("skill-card"), "should be a skill-card");
+    assert.ok(card.classList.contains("skill-card--collapsed"), "should start collapsed");
+    assert.ok(!card.classList.contains("bubble"), "should NOT be a regular bubble");
+});
+
+test("skill card extracts skill name from path", () => {
+    const container = makeContainer();
+    const beat = makeBeat(0, {
+        type: "user_message",
+        content: "Base directory for this skill: /home/user/.claude/skills/precheck\n\nContent...",
+    });
+    const card = renderBeat(beat, container);
+    const header = card.children.find((c) => c.classList.contains("skill-card__header"));
+    const summary = header.children.find((c) => c.classList.contains("skill-card__summary"));
+    assert.ok(summary.textContent.includes("/precheck"), "should show skill name");
+});
+
+test("skill card has toggle button", () => {
+    const container = makeContainer();
+    const beat = makeBeat(0, {
+        type: "user_message",
+        content: "Base directory for this skill: /home/user/.claude/skills/ddd\n\nContent...",
+    });
+    const card = renderBeat(beat, container);
+    const header = card.children.find((c) => c.classList.contains("skill-card__header"));
+    const toggle = header.children.find((c) => c.classList.contains("skill-card__toggle"));
+    assert.ok(toggle, "should have toggle button");
+    assert.ok(toggle.textContent.includes("Show"), "should say Show when collapsed");
+});
+
+test("clicking skill card toggle expands it", () => {
+    const container = makeContainer();
+    const beat = makeBeat(0, {
+        type: "user_message",
+        content: "Base directory for this skill: /home/user/.claude/skills/ddd\n\nContent...",
+    });
+    const card = renderBeat(beat, container);
+    const header = card.children.find((c) => c.classList.contains("skill-card__header"));
+    const toggle = header.children.find((c) => c.classList.contains("skill-card__toggle"));
+
+    toggle.click();
+    assert.ok(card.classList.contains("skill-card--expanded"), "should be expanded");
+    assert.ok(!card.classList.contains("skill-card--collapsed"), "should not be collapsed");
+    assert.ok(toggle.textContent.includes("Hide"), "should say Hide when expanded");
+});
+
+test("clicking skill card toggle twice re-collapses it", () => {
+    const container = makeContainer();
+    const beat = makeBeat(0, {
+        type: "user_message",
+        content: "Base directory for this skill: /home/user/.claude/skills/ddd\n\nContent...",
+    });
+    const card = renderBeat(beat, container);
+    const header = card.children.find((c) => c.classList.contains("skill-card__header"));
+    const toggle = header.children.find((c) => c.classList.contains("skill-card__toggle"));
+
+    toggle.click();
+    toggle.click();
+    assert.ok(card.classList.contains("skill-card--collapsed"));
+    assert.ok(!card.classList.contains("skill-card--expanded"));
+});
+
+test("skill card sets data-beat-id", () => {
+    const container = makeContainer();
+    const beat = makeBeat(42, {
+        type: "user_message",
+        content: "Base directory for this skill: /home/user/.claude/skills/ddd\n\nContent...",
+    });
+    const card = renderBeat(beat, container);
+    assert.equal(card.dataset.beatId, "42");
+});
+
+test("skill card has beat number meta element", () => {
+    const container = makeContainer();
+    const beat = makeBeat(9, {
+        type: "user_message",
+        content: "Base directory for this skill: /home/user/.claude/skills/ddd\n\nContent...",
+    });
+    const card = renderBeat(beat, container);
+    const meta = card.children.find((c) => c.classList.contains("bubble__meta"));
+    assert.ok(meta, "should have meta element");
+    assert.equal(meta.textContent, "#10");
+});
+
+test("skill card can be removed via removeBeat", () => {
+    const container = makeContainer();
+    const beat = makeBeat(0, {
+        type: "user_message",
+        content: "Base directory for this skill: /home/user/.claude/skills/ddd\n\nContent...",
+    });
+    renderBeat(beat, container);
+    assert.equal(container.children.length, 1);
+    removeBeat({ id: 0 }, container);
+    assert.equal(container.children.length, 0);
+});
+
+test("skill card preserves full content in body", () => {
+    const container = makeContainer();
+    const content = "Base directory for this skill: /home/user/.claude/skills/ddd\n\n# DDD Skill\n\nLine 1\n  Indented line";
+    const beat = makeBeat(0, { type: "user_message", content: content });
+    const card = renderBeat(beat, container);
+    const body = card.children.find((c) => c.classList.contains("skill-card__body"));
+    assert.ok(body.textContent.includes("# DDD Skill"), "body should have full content");
+    assert.ok(body.textContent.includes("  Indented line"), "body should preserve indentation");
+});
+
+test("normal user message is NOT collapsed as skill card", () => {
+    const container = makeContainer();
+    const beat = makeBeat(0, {
+        type: "user_message",
+        content: "Please review this code for me",
+    });
+    const bubble = renderBeat(beat, container);
+    assert.ok(bubble.classList.contains("bubble--user"), "should be a normal bubble");
+    assert.ok(!bubble.classList.contains("skill-card"), "should NOT be a skill card");
+});
+
+test("skill detection ignores system-reminder wrapping", () => {
+    const container = makeContainer();
+    const beat = makeBeat(0, {
+        type: "user_message",
+        content: "<system-reminder>some injected stuff</system-reminder>Base directory for this skill: /home/user/.claude/skills/engage\n\nContent...",
+    });
+    const card = renderBeat(beat, container);
+    assert.ok(card.classList.contains("skill-card"), "should detect skill after stripping system tags");
 });
 
 // ---------------------------------------------------------------------------
